@@ -1,16 +1,21 @@
 import { createClient } from '../lib/supabase/client'
 import nodemailer from 'nodemailer'
 
-// Email configuration
-const transporter = nodemailer.createTransporter({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || '587'),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-})
+function getTransporter() {
+  if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASS) {
+    throw new Error("Missing SMTP configuration");
+  }
+
+  return nodemailer.createTransport({
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587'),
+    secure: false,
+    auth: {
+      user: process.env.SMTP_USER,
+      pass: process.env.SMTP_PASS,
+    },
+  });
+}
 
 async function sendDeadlineReminders() {
   const supabase = createClient()
@@ -75,6 +80,7 @@ async function sendDeadlineReminders() {
         }
         
         try {
+          const transporter = getTransporter()
           await transporter.sendMail(mailOptions)
           console.log(`Reminder sent to ${userEmail} for tender: ${tender.title}`)
         } catch (emailError) {
@@ -89,5 +95,7 @@ async function sendDeadlineReminders() {
   }
 }
 
-// Run the function
-sendDeadlineReminders()
+// Run function only if this file is executed directly
+if (import.meta.url === `file://${process.argv[1]}`) {
+  sendDeadlineReminders()
+}
