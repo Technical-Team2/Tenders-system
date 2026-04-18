@@ -1,47 +1,30 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { sendTenderAlerts } from '@/lib/email/notifications'
+import nodemailer from "nodemailer";
 
 export async function POST(request: NextRequest) {
   try {
-    const { tenderId, score } = await request.json()
+    const body = await request.json()
 
-    if (!tenderId || score === undefined) {
-      return NextResponse.json(
-        { error: 'Tender ID and score are required' },
-        { status: 400 }
-      )
-    }
+    const transporter = nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT),
+      secure: true,
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS,
+      },
+    });
 
-    // Get tender details
-    const { createClient } = await import('@/lib/supabase/server')
-    const supabase = await createClient()
-    
-    const { data: tender, error } = await supabase
-      .from('tenders')
-      .select('*')
-      .eq('id', tenderId)
-      .single()
+    await transporter.sendMail({
+      from: process.env.SMTP_FROM,
+      to: body.to,
+      subject: body.subject,
+      text: body.message,
+    });
 
-    if (error || !tender) {
-      return NextResponse.json(
-        { error: 'Tender not found' },
-        { status: 404 }
-      )
-    }
-
-    // Send tender alerts
-    await sendTenderAlerts(tender, score)
-
-    return NextResponse.json({
-      success: true,
-      message: 'Tender alerts sent successfully'
-    })
-
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Error in send-alert API:', error)
-    return NextResponse.json(
-      { error: 'Failed to send tender alerts' },
-      { status: 500 }
-    )
+    console.error(error);
+    return NextResponse.json({ error: "Email failed" }, { status: 500 });
   }
 }
