@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { emailClient } from './client'
+import { getEmailClient } from './client'
 
 export interface NotificationSettings {
   newTenders: boolean
@@ -27,6 +27,7 @@ export async function sendTenderAlerts(tender: any, score: number) {
     // Send alerts to eligible users
     for (const user of users) {
       if (user.email) {
+        const emailClient = getEmailClient()
         const success = await emailClient.sendTenderAlert(user.email, tender, score)
         if (success) {
           console.log(`Tender alert sent to ${user.email}`)
@@ -79,6 +80,7 @@ export async function sendDeadlineReminders() {
         for (const application of tender.applications || []) {
           const userProfile = application.user_profiles
           if (userProfile?.notification_settings?.deadlineReminders && userProfile.email) {
+            const emailClient = getEmailClient()
             const success = await emailClient.sendDeadlineReminder(
               userProfile.email,
               tender,
@@ -136,6 +138,7 @@ export async function sendDailyDigest() {
     // Send digest to eligible users
     for (const user of users) {
       if (user.email) {
+        const emailClient = getEmailClient()
         const success = await emailClient.sendDailyDigest(user.email, tenders)
         if (success) {
           console.log(`Daily digest sent to ${user.email}`)
@@ -208,6 +211,7 @@ export async function sendApplicationStatusUpdate(applicationId: string, newStat
       </html>
     `
 
+    const emailClient = getEmailClient()
     const success = await emailClient.sendEmail(userEmail, subject, html)
     if (success) {
       console.log(`Application status update sent to ${userEmail}`)

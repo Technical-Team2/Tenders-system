@@ -1,4 +1,4 @@
-import nodemailer from 'nodemailer'
+import * as nodemailer from 'nodemailer'
 
 interface EmailConfig {
   host: string
@@ -13,32 +13,33 @@ interface EmailConfig {
 class EmailClient {
   private transporter: nodemailer.Transporter | null = null
 
-  constructor() {
-    this.initializeTransporter()
-  }
-
-  private initializeTransporter() {
-    const config: EmailConfig = {
-      host: process.env.SMTP_HOST || 'smtp.gmail.com',
-      port: parseInt(process.env.SMTP_PORT || '587'),
-      secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
-      auth: {
-        user: process.env.SMTP_USER || '',
-        pass: process.env.SMTP_PASS || ''
-      }
+  private getTransporter(): nodemailer.Transporter {
+    if (!process.env.EMAIL_HOST || !process.env.EMAIL_USER || !process.env.EMAIL_PASS) {
+      throw new Error('Missing SMTP credentials')
     }
 
-    this.transporter = nodemailer.createTransporter(config)
+    if (!this.transporter) {
+      const config: EmailConfig = {
+        host: process.env.EMAIL_HOST || 'smtp.gmail.com',
+        port: parseInt(process.env.EMAIL_PORT || '587'),
+        secure: process.env.EMAIL_PORT === '465', // true for 465, false for other ports
+        auth: {
+          user: process.env.EMAIL_USER || '',
+          pass: process.env.EMAIL_PASS || ''
+        }
+      }
+
+      this.transporter = nodemailer.createTransport(config)
+    }
+
+    return this.transporter
   }
 
   async sendEmail(to: string, subject: string, html: string): Promise<boolean> {
-    if (!this.transporter) {
-      throw new Error('Email transporter not initialized')
-    }
-
     try {
-      const info = await this.transporter.sendMail({
-        from: process.env.EMAIL_FROM || process.env.SMTP_USER,
+      const transporter = this.getTransporter()
+      const info = await transporter.sendMail({
+        from: process.env.EMAIL_FROM || process.env.EMAIL_USER,
         to,
         subject,
         html
@@ -197,4 +198,7 @@ class EmailClient {
   }
 }
 
-export const emailClient = new EmailClient()
+// Export a function to get the email client instance
+export function getEmailClient(): EmailClient {
+  return new EmailClient()
+}
