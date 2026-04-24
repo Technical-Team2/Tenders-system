@@ -1,312 +1,299 @@
 # TenderScope
 
-A comprehensive tender management system that automates the discovery, analysis, and tracking of tender opportunities. Built with modern web technologies and AI-powered analysis to help businesses stay competitive in the procurement landscape.
+TenderScope is a tender discovery and management platform with:
 
-## Overview
+- a `frontend/` Next.js app for authentication, dashboard, tender browsing, assistant, and source management
+- a `backend/` Express API for tenders, applications, sources, AI helpers, and scraping jobs
+- Supabase as the main database and auth provider
 
-TenderScope is a full-stack application that scrapes tender opportunities from various sources, analyzes them using AI, and provides a user-friendly dashboard for managing applications and tracking deadlines. The system features automated web scraping, intelligent classification, and real-time notifications.
+## Current Status
 
-## Table of Contents
+Recent updates in this repo:
 
-- [Key Features](#key-features)
-  - [Core Functionality](#core-functionality)
-  - [Technical Features](#technical-features)
-- [Technology Stack](#technology-stack)
-  - [Frontend Technologies](#frontend-technologies)
-  - [Backend Technologies](#backend-technologies)
-  - [Web Scraping Tools](#web-scraping-tools)
-  - [Development Tools](#development-tools)
-- [Getting Started](#getting-started)
-  - [Prerequisites](#prerequisites)
-  - [Installation](#installation)
-  - [Database Setup](#database-setup)
-  - [Start the Development Servers](#start-the-development-servers)
-- [Project Structure](#project-structure)
-- [Key Components](#key-components)
-  - [Dashboard](#dashboard)
-  - [Tender Management](#tender-management)
-  - [Scraping System](#scraping-system)
-- [API Endpoints](#api-endpoints)
-  - [Authentication](#authentication-apiauth)
-  - [Tender Management](#tender-management-apitenders)
-  - [Scraping System](#scraping-system-apiscrape-tenders)
-  - [AI Processing](#ai-processing-apiai)
-  - [Applications](#applications-apiapplications)
-  - [Email Notifications](#email-notifications-apiemail)
-  - [System Health](#system-health)
-- [Architecture](#architecture)
-  - [System Components](#system-components)
-  - [Data Flow](#data-flow)
-  - [Queue System](#queue-system)
-- [Environment Variables](#environment-variables)
-- [Contributing](#contributing)
-- [License](#license)
-- [Support](#support)
-- [Roadmap](#roadmap)
+- backend routes for `/api/tenders`, `/api/applications`, `/api/tender-sources`, `/api/ai`, and `/api/email` are mounted and available
+- dashboard, tenders, and assistant pages in the frontend now fetch data through backend APIs so requests are visible in browser dev tools
+- the frontend scrape route uses a Supabase admin client for inserts and now reports duplicate and insert errors instead of silently returning `0 inserted`
 
-## Key Features
+## Repository Structure
 
-### Core Functionality
-- **Automated Tender Scraping**: Multi-layer scraping system using Axios, Puppeteer, and Playwright
-- **AI-Powered Analysis**: OpenAI integration for tender classification, scoring, and data cleaning
-- **Smart Dashboard**: Real-time KPIs, metrics, and tender overview
-- **Application Management**: Track application status and deadlines
-- **Company Intelligence**: Extract and analyze company information from tender sources
-- **Email Notifications**: Automated deadline reminders and new tender alerts
-
-### Technical Features
-- **Responsive Design**: Mobile-first approach with Tailwind CSS
-- **Real-time Updates**: Live data synchronization
-- **Queue Management**: Background job processing with BullMQ and Redis
-- **Anti-blocking System**: Advanced techniques to avoid detection during scraping
-- **Error Handling**: Robust fallback mechanisms and retry logic
-- **Secure Authentication**: Supabase-based user management
-
-## Technology Stack
-
-### Frontend Technologies
-- **Next.js 16.2.0**: React framework with App Router and Server Components
-- **TypeScript 5.7.3**: Type-safe development with strict mode
-- **React 19.2.4**: Modern React with concurrent features
-- **Tailwind CSS 4.2.0**: Utility-first CSS framework with custom components
-- **shadcn/ui**: Comprehensive component library built on Radix UI
-- **Lucide React**: Modern icon library with consistent design
-
-### Backend Technologies
-- **Node.js**: JavaScript runtime with ES modules
-- **Express 4.19.2**: Web framework with middleware support
-- **Supabase**: PostgreSQL database with real-time features and authentication
-- **OpenAI GPT-3.5-turbo**: AI-powered text analysis and classification
-- **BullMQ 5.74.1**: Advanced job queue system with Redis backend
-- **IoRedis 5.10.1**: Redis client for queue management
-
-### Web Scraping Tools
-- **Cheerio 1.2.0**: Server-side HTML parsing and manipulation
-- **Puppeteer 24.41.0**: Headless Chrome automation
-- **Playwright 1.59.1**: Cross-browser automation and scraping
-- **Axios**: HTTP client with retry capabilities
-
-### Development Tools
-- **pnpm**: Fast, disk space efficient package manager
-- **ESLint**: Code quality and style enforcement
-- **PostCSS**: CSS processing and optimization
-- **Node-cron**: Scheduled task management
-- **Nodemailer**: Email sending capabilities
-
-## Getting Started
-
-### Prerequisites
-- Node.js (v18 or higher)
-- npm, yarn, or pnpm
-- OpenAI API key
-- Supabase project
-
-### Installation
-
-1. **Clone the repository**
-   ```bash
-   git clone <repository-url>
-   cd tender-system
-   ```
-
-2. **Install dependencies**
-   ```bash
-   npm install
-   # or
-   pnpm install
-   ```
-
-3. **Environment Setup**
-   ```bash
-   cp .env.example .env
-   ```
-   
-   Update `.env` with your actual values:
-   ```env
-   OPENAI_API_KEY=your_openai_api_key_here
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
-   SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
-   NODE_ENV=development
-   PORT=3001
-   ```
-
-4. **Database Setup**
-   - Run the SQL scripts in the `scripts/` directory in order:
-     - `001_create_tables.sql`
-     - `002_seed_data.sql`
-     - `003_user_profiles.sql`
-
-5. **Start the development servers**
-   
-   **Frontend** (port 3000):
-   ```bash
-   npm run dev
-   # or
-   pnpm dev
-   ```
-   
-   **Backend** (port 3001):
-   ```bash
-   cd backend
-   npm run dev
-   # or
-   pnpm dev
-   ```
-
-6. **Open your browser**
-   Navigate to `http://localhost:3000`
-
-## Project Structure
-
-```
-tender-system/
-|-- app/                    # Next.js app router pages
-|   |-- (dashboard)/       # Dashboard layout and pages
-|   |-- auth/              # Authentication pages
-|   |-- api/               # API routes
-|   `-- globals.css        # Global styles
-|-- backend/               # Node.js backend
-|   |-- routes/           # API endpoints
-|   |-- services/         # Business logic
-|   |-- jobs/             # Background jobs
-|   `-- queue/            # Job queue management
-|-- components/            # React components
-|   |-- auth/             # Authentication components
-|   |-- ui/               # UI components
-|   `-- *.tsx             # Custom components
-|-- lib/                  # Utility libraries
-|-- hooks/                # Custom React hooks
-|-- scripts/              # Database scripts
-|-- styles/               # Additional styles
-`-- public/               # Static assets
+```text
+.
+├── frontend/                  # Next.js 16 frontend
+│   ├── app/
+│   │   ├── (dashboard)/       # Shared dashboard route-group components
+│   │   ├── dashboard/         # Public dashboard routes mounted in app router
+│   │   ├── api/               # Next.js API routes, including /api/scrape
+│   │   ├── auth/              # Auth pages
+│   │   └── ...
+│   ├── components/            # UI and feature components
+│   ├── lib/                   # API client, Supabase helpers, types, dashboard helpers
+│   ├── hooks/
+│   ├── styles/
+│   ├── .env.local
+│   └── package.json
+├── backend/                   # Express backend
+│   ├── routes/                # Mounted API routes
+│   ├── services/              # Scraping and AI pipeline services
+│   ├── jobs/                  # Worker/scheduler entrypoints
+│   ├── queue/                 # BullMQ queue code
+│   ├── scripts/               # SQL setup/seed scripts and utilities
+│   ├── .env
+│   ├── server.js
+│   └── package.json
+├── shared/
+├── package.json               # Monorepo convenience scripts
+└── README.md
 ```
 
-## Key Components
+## Tech Stack
 
-### Dashboard
-- **KPI Cards**: Display key metrics and statistics
-- **Recent Tenders**: Latest tender opportunities
-- **Quick Actions**: Fast access to common tasks
+### Frontend
 
-### Tender Management
-- **Tender List**: Browse and filter tenders
-- **Tender Details**: View comprehensive tender information
-- **AI Analysis**: Automated scoring and classification
+- Next.js 16
+- React 19
+- TypeScript
+- Tailwind CSS 4
+- Radix UI / shadcn-style components
+- Supabase SSR/client helpers
 
-### Scraping System
-- **Multi-layer Scraping**: Axios, Puppeteer, and Playwright strategies
-- **Anti-blocking**: Random delays and user agents
-- **Error Handling**: Robust fallback mechanisms
+### Backend
+
+- Node.js
+- Express
+- Supabase JS
+- BullMQ + Redis
+- Cheerio, Axios, Puppeteer, Playwright
+- OpenAI SDK
+
+## How Data Flows
+
+### Dashboard and Tender Pages
+
+The frontend now fetches tender-related data through the backend API for browser-visible requests:
+
+- dashboard page fetches tenders, applications, and sources through `frontend/lib/api/client.ts`
+- tenders page fetches `/api/tenders` and `/api/tender-sources`
+- assistant page fetches `/api/tenders?limit=10`
+
+### Scraping
+
+There are two scraping paths in the repo:
+
+1. `frontend/app/api/scrape/route.ts`
+   Used by the Sources UI when clicking `Scrape Now`.
+   This route scrapes the source page, attempts inserts into Supabase, logs scrape activity, and now uses a Supabase admin client.
+
+2. `backend/routes/scrape-tenders.js`
+   The backend production-style scraping endpoint and queue entrypoint.
 
 ## API Endpoints
 
-### Authentication (`/api/auth`)
-- `POST /api/auth/signin` - User authentication
-- `POST /api/auth/signup` - User registration
-- `POST /api/auth/signout` - User logout
+### Backend API (`http://localhost:3001`)
 
-### Tender Management (`/api/tenders`)
-- `GET /api/tenders` - List all tenders with pagination
-- `GET /api/tenders/[id]` - Get detailed tender information
-- `POST /api/tenders` - Create new tender entry
-- `PUT /api/tenders/[id]` - Update tender details
-- `DELETE /api/tenders/[id]` - Remove tender
+Mounted in `backend/server.js`.
 
-### Scraping System (`/api/scrape-tenders`)
-- `POST /api/scrape-tenders` - Scrape single tender source
-- `POST /api/scrape-tenders/batch` - Batch scrape multiple sources
-- `GET /api/scrape-tenders/status/:jobId` - Get scraping job status
-- `GET /api/scrape-tenders/queue-stats` - Get queue statistics
-- `GET /api/scrape-tenders/history` - Get job history
-- `POST /api/scrape-tenders/emergency` - Emergency high-priority scraping
-- `POST /api/scrape-tenders/company` - Scrape company information
-- `GET /api/scrape-tenders/stats` - Get scraping statistics
-- `POST /api/scrape-tenders/cleanup` - Clean up old logs
+#### Auth
 
-### AI Processing (`/api/ai`)
-- `POST /api/ai/analyze` - Analyze tender content with AI
-- `POST /api/ai/classify` - Classify tender category and priority
-- `POST /api/ai/clean-data` - Clean and structure scraped data
-- `POST /api/ai/extract-companies` - Extract company information
+- `POST /api/auth/signin`
+- `POST /api/auth/signup`
+- `POST /api/auth/signout`
+- `GET /api/auth/user`
 
-### Applications (`/api/applications`)
-- `GET /api/applications` - List user applications
-- `POST /api/applications` - Create new application
-- `PUT /api/applications/[id]` - Update application status
-- `GET /api/applications/stats` - Get application statistics
+#### Tenders
 
-### Email Notifications (`/api/email`)
-- `POST /api/email/deadline-reminder` - Send deadline reminders
-- `POST /api/email/new-tender` - Notify about new tenders
-- `POST /api/email/application-update` - Application status updates
+- `GET /api/tenders`
+- `GET /api/tenders/:id`
+- `POST /api/tenders`
+- `PUT /api/tenders/:id`
+- `DELETE /api/tenders/:id`
 
-### System Health
-- `GET /health` - System health check
-- `GET /api/version` - Application version info
+Notes:
 
-## Architecture
+- `GET /api/tenders` returns joined `tender_sources` and `tender_scores`
+- optional query params currently supported include `status` and `limit`
 
-### System Components
-```
-Frontend (Next.js)     Backend (Node.js)     Database (Supabase)
-     |                        |                      |
-     |-- API Requests -------->|                      |
-     |<-- JSON Responses -----|                      |
-     |                        |-- Database Queries -->|
-     |                        |<-- Data Responses ----|
-```
+#### Applications
 
-### Data Flow
-1. **Scraping Pipeline**: Automated jobs fetch tender data from external sources
-2. **AI Processing**: OpenAI analyzes and classifies tender information
-3. **Database Storage**: Cleaned data stored in Supabase PostgreSQL
-4. **Real-time Updates**: Frontend receives live updates via Supabase subscriptions
-5. **Notification System**: Email alerts sent for deadlines and new opportunities
+- `GET /api/applications`
+- `POST /api/applications`
+- `PUT /api/applications/:id`
+- `DELETE /api/applications/:id`
 
-### Queue System
-- **Redis**: In-memory data store for job queues
-- **BullMQ**: Advanced job processing with priority and retry logic
-- **Scheduler**: Automated scraping at configurable intervals
+#### Tender Sources
+
+- `GET /api/tender-sources`
+- `POST /api/tender-sources`
+- `PUT /api/tender-sources/:id`
+- `DELETE /api/tender-sources/:id`
+
+#### AI
+
+- `POST /api/ai/score-tender`
+- `POST /api/ai/extract-company`
+- `POST /api/ai/application-assist`
+
+#### Email
+
+- `POST /api/email/send-alert`
+
+#### Scraping
+
+- `POST /api/scrape-tenders`
+- `POST /api/scrape-tenders/batch`
+- `GET /api/scrape-tenders/status/:jobId`
+- `GET /api/scrape-tenders/queue-stats`
+- `GET /api/scrape-tenders/history`
+- `POST /api/scrape-tenders/emergency`
+- `POST /api/scrape-tenders/company`
+- `GET /api/scrape-tenders/stats`
+- `POST /api/scrape-tenders/cleanup`
+
+#### Health
+
+- `GET /health`
+
+### Frontend Next API
+
+Defined in `frontend/app/api`.
+
+- `POST /api/scrape`
+- `GET /api/scrape`
+- `POST /api/ai/score-tender`
+- `POST /api/ai/application-assist`
+- `POST /api/ai/extract-company`
 
 ## Environment Variables
 
-| Variable | Description | Required | Example |
-|----------|-------------|----------|---------|
-| `OPENAI_API_KEY` | OpenAI API key for AI analysis | Yes | `sk-...` |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL | Yes | `https://xxx.supabase.co` |
-| `SUPABASE_SERVICE_ROLE_KEY` | Supabase service role key | Yes | `eyJ...` |
-| `NODE_ENV` | Environment (development/production) | No | `development` |
-| `PORT` | Backend server port | No | `3001` |
-| `REDIS_URL` | Redis connection string | Yes | `redis://localhost:6379` |
-| `EMAIL_HOST` | SMTP server for notifications | Yes | `smtp.gmail.com` |
-| `EMAIL_PORT` | SMTP port | Yes | `587` |
-| `EMAIL_USER` | Email username | Yes | `user@gmail.com` |
-| `EMAIL_PASS` | Email password/app password | Yes | `app_password` |
+### Frontend (`frontend/.env.local`)
 
-## Contributing
+Required for current local development:
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
+```env
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+NEXT_PUBLIC_API_URL=http://localhost:3001
+```
 
-## License
+Notes:
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+- `SUPABASE_SERVICE_ROLE_KEY` is required by `frontend/app/api/scrape/route.ts` for tender inserts during scraping
+- restart the Next.js dev server after changing `.env.local`
 
-## Support
+### Backend (`backend/.env`)
 
-For support and questions:
-- Create an issue in the GitHub repository
-- Check the documentation in the `docs/` folder
-- Review the FAQ section
+Typical local setup:
 
-## Roadmap
+```env
+PORT=3001
+NODE_ENV=development
+NEXT_PUBLIC_SUPABASE_URL=...
+SUPABASE_SERVICE_ROLE_KEY=...
+FRONTEND_URL=http://localhost:3000
+REDIS_URL=redis://localhost:6379
+OPENAI_API_KEY=...
+EMAIL_HOST=...
+EMAIL_PORT=587
+EMAIL_USER=...
+EMAIL_PASS=...
+```
 
-- [ ] Advanced filtering and search
-- [ ] Mobile app development
-- [ ] Integration with more tender sources
-- [ ] Advanced analytics and reporting
-- [ ] Multi-language support
-- [ ] Team collaboration features
+## Setup
+
+### 1. Install Dependencies
+
+From the repo root:
+
+```bash
+pnpm install
+```
+
+If needed, also install inside each app:
+
+```bash
+cd frontend && pnpm install
+cd ../backend && pnpm install
+```
+
+### 2. Set Up Supabase
+
+Run the SQL files in `backend/scripts/` against your Supabase database:
+
+1. `001_create_tables.sql`
+2. `002_seed_data.sql`
+3. `003_user_profiles.sql`
+
+### 3. Start the Apps
+
+From the repo root:
+
+```bash
+pnpm dev
+pnpm backend:dev
+```
+
+Or manually:
+
+```bash
+cd frontend
+pnpm dev
+```
+
+```bash
+cd backend
+pnpm dev
+```
+
+### 4. Open the App
+
+- frontend: `http://localhost:3000`
+- backend: `http://localhost:3001`
+- backend health check: `http://localhost:3001/health`
+
+## Useful Commands
+
+From the repo root:
+
+```bash
+pnpm dev
+pnpm build
+pnpm start
+pnpm lint
+pnpm backend:dev
+pnpm backend:start
+pnpm backend:worker
+pnpm backend:scheduler
+```
+
+## Frontend Pages
+
+Main dashboard-related routes:
+
+- `/dashboard`
+- `/dashboard/tenders`
+- `/dashboard/tenders/[id]`
+- `/dashboard/applications`
+- `/dashboard/assistant`
+- `/dashboard/sources`
+- `/dashboard/settings`
+
+Auth and public routes:
+
+- `/signin`
+- `/signup`
+- `/forgot-password`
+- `/landing`
+
+## Known Notes
+
+- The frontend currently mixes backend API usage and direct Supabase usage in different areas of the app. Dashboard, tenders, and assistant pages have already been moved to backend API fetches.
+- The Sources UI still triggers the frontend Next API route at `/api/scrape`.
+- There is an existing unrelated TypeScript issue in `frontend/components/auth/auth-form.tsx` around the sign-up response union type.
+- When testing newly added backend routes, restart the backend dev server to avoid hitting an older process that still returns `{"error":"Route not found"}`.
+
+## Suggested Next Cleanup
+
+- move all tender/application/source reads to the backend API consistently
+- decide on one scraping path to keep: frontend `/api/scrape` or backend `/api/scrape-tenders`
+- centralize Supabase admin access to avoid duplicated insert logic
+- add request-level error surfacing in the Sources UI for scrape failures
