@@ -1,22 +1,56 @@
 import express from 'express'
-import { createClient } from '@supabase/supabase-js'
 
 const router = express.Router()
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
 
 // Get all tenders
 router.get('/', async (req, res) => {
   try {
-    const { data, error } = await supabase
+    const { status, limit } = req.query
+    const supabase = req.supabase
+
+    let query = supabase
       .from('tenders')
-      .select('*')
+      .select('*, tender_sources(*), tender_scores(*)')
       .order('created_at', { ascending: false })
+
+    if (status) {
+      query = query.eq('status', status)
+    }
+
+    if (limit) {
+      query = query.limit(Number(limit))
+    }
+
+    const { data, error } = await query
 
     if (error) {
       return res.status(500).json({ error: error.message })
+    }
+
+    res.json(data)
+  } catch (error) {
+    res.status(500).json({ error: error.message })
+  }
+})
+
+// Get tender by id
+router.get('/:id', async (req, res) => {
+  try {
+    const { id } = req.params
+    const supabase = req.supabase
+
+    const { data, error } = await supabase
+      .from('tenders')
+      .select('*, tender_sources(*), tender_scores(*)')
+      .eq('id', id)
+      .single()
+
+    if (error) {
+      return res.status(500).json({ error: error.message })
+    }
+
+    if (!data) {
+      return res.status(404).json({ error: 'Tender not found' })
     }
 
     res.json(data)
@@ -29,6 +63,7 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { title, description, deadline, source_url, status } = req.body
+    const supabase = req.supabase
 
     const { data, error } = await supabase
       .from('tenders')
@@ -50,6 +85,7 @@ router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
     const { title, description, deadline, source_url, status } = req.body
+    const supabase = req.supabase
 
     const { data, error } = await supabase
       .from('tenders')
@@ -71,6 +107,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params
+    const supabase = req.supabase
 
     const { error } = await supabase
       .from('tenders')
