@@ -89,17 +89,17 @@ export function ApplicationsContent({ applications }: ApplicationsContentProps) 
       </div>
 
       {/* Stats */}
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <Card className="border-border bg-card">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Total Applications</p>
-            <p className="text-2xl font-semibold mt-1">{totalCount}</p>
+            <p className="text-2xl font-semibold mt-1 truncate">{totalCount}</p>
           </CardContent>
         </Card>
         <Card className="border-border bg-card">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">In Progress</p>
-            <p className="text-2xl font-semibold mt-1 text-zinc-400">
+            <p className="text-2xl font-semibold mt-1 text-zinc-400 truncate">
               {applicationsByStatus["draft"]?.length || 0}
             </p>
           </CardContent>
@@ -107,13 +107,13 @@ export function ApplicationsContent({ applications }: ApplicationsContentProps) 
         <Card className="border-border bg-card">
           <CardContent className="p-4">
             <p className="text-sm text-muted-foreground">Submitted</p>
-            <p className="text-2xl font-semibold mt-1 text-blue-400">{submittedCount}</p>
+            <p className="text-2xl font-semibold mt-1 text-blue-400 truncate">{submittedCount}</p>
           </CardContent>
         </Card>
       </div>
 
       {/* Kanban Board */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-2">
         {columns.map((column) => (
           <div
             key={column.id}
@@ -145,7 +145,7 @@ export function ApplicationsContent({ applications }: ApplicationsContentProps) 
                   >
                     <CardContent className="p-4">
                       <div className="flex items-start justify-between gap-2">
-                        <h4 className="text-sm font-medium text-card-foreground line-clamp-2">
+                        <h4 className="text-sm font-medium text-card-foreground line-clamp-2 min-w-0 flex-1">
                           {app.tenders?.title || "Unknown Tender"}
                         </h4>
                         <DropdownMenu>

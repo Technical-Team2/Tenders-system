@@ -2,114 +2,94 @@ import { Queue, Worker } from 'bullmq';
 import IORedis from 'ioredis';
 import ScrapingPipeline from '../services/pipeline.js';
 
-// Redis connection
-const redisConnection = new IORedis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: process.env.REDIS_PORT || 6379,
-  password: process.env.REDIS_PASSWORD || undefined,
-  maxRetriesPerRequest: 3,
-  retryDelayOnFailover: 100,
-  enableReadyCheck: false,
-  maxRetriesPerRequest: null
-});
+// Lazy Redis connection - only initialize when needed
+let redisConnection = null;
+let scrapingQueue = null;
+let scrapingWorker = null;
 
-// Create scraping queue
-const scrapingQueue = new Queue('scraping', {
-  connection: redisConnection,
-  defaultJobOptions: {
-    removeOnComplete: 50,
-    removeOnFail: 20,
-    attempts: 3,
-    backoff: {
-      type: 'exponential',
-      delay: 2000
+function getRedisConnection() {
+  if (!redisConnection) {
+    try {
+      redisConnection = new IORedis({
+        host: process.env.REDIS_HOST || 'localhost',
+        port: process.env.REDIS_PORT || 6379,
+        password: process.env.REDIS_PASSWORD || undefined,
+        maxRetriesPerRequest: 3,
+        retryDelayOnFailover: 100,
+        enableReadyCheck: false,
+        maxRetriesPerRequest: null
+      });
+      console.log('✅ Redis connection established');
+    } catch (error) {
+      console.warn('⚠️  Redis connection failed:', error.message);
+      redisConnection = null;
     }
   }
-});
+  return redisConnection;
+}
 
-// Create worker for processing jobs
-const scrapingWorker = new Worker('scraping', async (job) => {
-  const { type, data, options = {} } = job.data;
-  const pipeline = new ScrapingPipeline();
-  
-  console.log(`Processing job ${job.id} of type: ${type}`);
-  
-  try {
-    switch (type) {
-      case 'tender_source':
-        return await pipeline.processTenderSource(data);
-        
-      case 'batch_sources':
-        return await pipeline.processBatch(data);
-        
-      case 'company_scrape':
-        return await pipeline.companyScraper.scrapeCompany(data.url, data.strategy);
-        
-      case 'ai_process':
-        switch (data.operation) {
-          case 'clean':
-            return await pipeline.aiProcessor.cleanData(data.text);
-          case 'classify':
-            return await pipeline.aiProcessor.classifyTender(data.tender);
-          case 'enrich':
-            return await pipeline.aiProcessor.enrichCompany(data.company);
-          default:
-            throw new Error(`Unknown AI operation: ${data.operation}`);
+function getScrapingQueue() {
+  if (!scrapingQueue) {
+    const connection = getRedisConnection();
+    if (!connection) {
+      throw new Error('Redis connection not available');
+    }
+    scrapingQueue = new Queue('scraping', {
+      connection,
+      defaultJobOptions: {
+        removeOnComplete: 50,
+        removeOnFail: 20,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 2000
         }
-        
-      case 'cleanup':
-        return await pipeline.cleanupOldLogs(options.daysToKeep);
-        
-      case 'stats':
-        return await pipeline.getScrapingStats();
-        
-      default:
-        throw new Error(`Unknown job type: ${type}`);
+      }
+    });
+  }
+  return scrapingQueue;
+}
+
+function getScrapingWorker() {
+  if (!scrapingWorker) {
+    const connection = getRedisConnection();
+    if (!connection) {
+      throw new Error('Redis connection not available');
     }
-  } catch (error) {
-    console.error(`Job ${job.id} failed:`, error.message);
-    throw error;
+    scrapingWorker = new Worker('scraping', async (job) => {
+      const pipeline = new ScrapingPipeline();
+      
+      switch (job.name) {
+        case 'tender_source':
+          return await pipeline.processTenderSource(job.data);
+        case 'batch_sources':
+          return await pipeline.processBatch(job.data);
+        case 'company_scrape':
+          return await pipeline.companyScraper.scrapeCompany(job.data.url, job.data.strategy);
+        case 'ai_process':
+          return await pipeline.aiProcessor[job.data.operation](job.data.data);
+        case 'cleanup':
+          return await pipeline.cleanupOldLogs(job.data.daysToKeep);
+        default:
+          throw new Error(`Unknown job type: ${job.name}`);
+      }
+    }, {
+      connection,
+      concurrency: 3,
+      limiter: {
+        max: 10,
+        duration: 60000
+      }
+    });
   }
-}, {
-  connection: redisConnection,
-  concurrency: 3, // Process 3 jobs concurrently
-  limiter: {
-    max: 10,
-    duration: 60000 // 10 jobs per minute
-  }
-});
-
-// Worker event listeners
-scrapingWorker.on('completed', (job) => {
-  console.log(`Job ${job.id} completed successfully`);
-});
-
-scrapingWorker.on('failed', (job, err) => {
-  console.error(`Job ${job.id} failed:`, err.message);
-});
-
-scrapingWorker.on('error', (err) => {
-  console.error('Worker error:', err);
-});
-
-// Queue event listeners
-scrapingQueue.on('waiting', (job) => {
-  console.log(`Job ${job.id} is waiting`);
-});
-
-scrapingQueue.on('active', (job) => {
-  console.log(`Job ${job.id} is now active`);
-});
-
-scrapingQueue.on('stalled', (job) => {
-  console.warn(`Job ${job.id} is stalled`);
-});
+  return scrapingWorker;
+}
 
 // Job management functions
 class QueueManager {
   constructor() {
-    this.queue = scrapingQueue;
-    this.worker = scrapingWorker;
+    this.queue = getScrapingQueue();
+    this.worker = getScrapingWorker();
   }
 
   async addTenderScrapingJob(sourceConfig, options = {}) {
@@ -270,30 +250,60 @@ class QueueManager {
     await this.worker.close();
     await this.queue.close();
     await redisConnection.quit();
-    console.log('Queue and connections closed');
+    process.exit(0);
   }
+}
+
+// Worker event listeners (attached when worker is initialized)
+function attachWorkerEventListeners(worker) {
+  worker.on('completed', (job) => {
+    console.log(`Job ${job.id} completed successfully`);
+  });
+
+  worker.on('failed', (job, err) => {
+    console.error(`Job ${job.id} failed:`, err.message);
+  });
+
+  worker.on('error', (err) => {
+    console.error('Worker error:', err);
+  });
+}
+
+// Queue event listeners (attached when queue is initialized)
+function attachQueueEventListeners(queue) {
+  queue.on('waiting', (job) => {
+    console.log(`Job ${job.id} is waiting`);
+  });
+
+  queue.on('active', (job) => {
+    console.log(`Job ${job.id} is now active`);
+  });
+
+  queue.on('stalled', (job) => {
+    console.warn(`Job ${job.id} is stalled`);
+  });
 }
 
 // Graceful shutdown
 process.on('SIGINT', async () => {
   console.log('Shutting down queue...');
-  await scrapingWorker.close();
-  await scrapingQueue.close();
-  await redisConnection.quit();
+  if (scrapingWorker) await scrapingWorker.close();
+  if (scrapingQueue) await scrapingQueue.close();
+  if (redisConnection) await redisConnection.quit();
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   console.log('Shutting down queue...');
-  await scrapingWorker.close();
-  await scrapingQueue.close();
-  await redisConnection.quit();
+  if (scrapingWorker) await scrapingWorker.close();
+  if (scrapingQueue) await scrapingQueue.close();
+  if (redisConnection) await redisConnection.quit();
   process.exit(0);
 });
 
 export {
   QueueManager,
-  scrapingQueue,
-  scrapingWorker,
-  redisConnection
+  getRedisConnection,
+  getScrapingQueue,
+  getScrapingWorker
 };

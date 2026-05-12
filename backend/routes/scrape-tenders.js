@@ -6,55 +6,101 @@ const router = express.Router()
 const queueManager = new QueueManager()
 const pipeline = new ScrapingPipeline()
 
+function buildSourceConfig(sourceUrl, sourceId, selectors) {
+  return {
+    url: sourceUrl,
+    sourceId,
+    name: sourceId ? `Source ${sourceId}` : 'Manual Scrape',
+    selectors: selectors || {
+      title: { element: 'h1, .title, .tender-title', text: true },
+      description: { element: '.description, .content, .tender-desc', text: true },
+      deadline: { element: '.deadline, .closing-date, .due-date', text: true },
+      organization: { element: '.organization, .company, .ministry', text: true },
+      budget: { element: '.budget, .value, .amount', text: true }
+    },
+    companyUrl: null
+  }
+}
+
+function formatScrapeResponse(sourceUrl, result) {
+  if (result.success) {
+    const tendersFound = result.count ?? result.tenders?.length ?? 0
+
+    return {
+      success: true,
+      sourceUrl,
+      source: result.source,
+      tendersFound,
+      tender: result.tender || result.tenders?.[0] || null,
+      tenders: result.tenders || [],
+      extractedCount: result.extractedCount ?? tendersFound,
+      insertErrors: result.insertErrors || [],
+      company: result.company,
+      classification: result.classification,
+      message: result.message,
+      summary: result.message || `Successfully processed ${tendersFound} tender(s) from ${sourceUrl}`
+    }
+  }
+
+  return {
+    success: false,
+    sourceUrl,
+    source: result.source,
+    error: result.error || result.message || result.reason || 'Failed to process tender',
+    reason: result.reason,
+    message: result.message,
+    extractedCount: result.extractedCount,
+    insertErrors: result.insertErrors || []
+  }
+}
+
 // POST /api/scrape-tenders - Scrape tenders from a URL using production pipeline
 router.post('/', async (req, res) => {
   try {
-    const { sourceUrl, sourceId, selectors, strategy = 'axios' } = req.body
+    const { sourceUrl, sourceId, selectors, urls } = req.body
+    const sourceUrls = Array.isArray(urls) ? urls : (sourceUrl ? [sourceUrl] : [])
 
-    if (!sourceUrl) {
+    if (sourceUrls.length === 0) {
       return res.status(400).json({ error: 'Source URL is required' })
     }
 
-    console.log(`Starting production scrape for: ${sourceUrl}`)
-    
-    // Create source configuration
-    const sourceConfig = {
-      url: sourceUrl,
-      name: sourceId ? `Source ${sourceId}` : 'Manual Scrape',
-      selectors: selectors || {
-        title: { element: 'h1, .title, .tender-title', text: true },
-        description: { element: '.description, .content, .tender-desc', text: true },
-        deadline: { element: '.deadline, .closing-date, .due-date', text: true },
-        organization: { element: '.organization, .company, .ministry', text: true },
-        budget: { element: '.budget, .value, .amount', text: true }
-      },
-      companyUrl: null
+    if (sourceUrls.length > 1) {
+      const results = await Promise.all(sourceUrls.map(async (url) => {
+        try {
+          const result = await pipeline.processTenderSource(buildSourceConfig(url, sourceId, selectors))
+          return formatScrapeResponse(url, result)
+        } catch (error) {
+          console.error(`Production scraping error for ${url}:`, error)
+          return {
+            success: false,
+            sourceUrl: url,
+            error: error.message
+          }
+        }
+      }))
+
+      const successCount = results.filter(result => result.success).length
+      return res.status(successCount > 0 ? 200 : 400).json({
+        success: successCount > 0,
+        sourceUrl: sourceUrls[0],
+        sourcesCount: sourceUrls.length,
+        successCount,
+        failureCount: results.length - successCount,
+        results,
+        summary: `Processed ${sourceUrls.length} source(s): ${successCount} succeeded, ${results.length - successCount} failed`
+      })
     }
 
-    // Process through production pipeline
+    const sourceConfig = buildSourceConfig(sourceUrls[0], sourceId, selectors)
     const result = await pipeline.processTenderSource(sourceConfig)
-    
-    if (result.success) {
-      res.json({
-        success: true,
-        sourceUrl,
-        tendersFound: 1,
-        tender: result.tender,
-        company: result.company,
-        classification: result.classification,
-        summary: `Successfully processed tender from ${sourceUrl}`
-      })
-    } else {
-      res.status(400).json({
-        success: false,
-        sourceUrl,
-        error: result.error || 'Failed to process tender'
-      })
-    }
+    const responseBody = formatScrapeResponse(sourceUrls[0], result)
+
+    res.status(result.success ? 200 : 400).json(responseBody)
   } catch (error) {
     console.error('Production scraping error:', error)
     res.status(500).json({
       success: false,
+      sourceUrl: req.body?.sourceUrl,
       error: error.message
     })
   }

@@ -128,10 +128,10 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
     setScrapeMessage(null)
     
     try {
-      const response = await fetch("/api/scrape", {
+      const response = await fetch("http://localhost:3001/api/scrape-tenders", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceId: source.id, url: source.base_url }),
+        body: JSON.stringify({ sourceUrl: source.base_url, sourceId: source.id }),
       })
       
       const data = await response.json()
@@ -139,7 +139,7 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
       if (response.ok) {
         setScrapeMessage({ 
           type: "success", 
-          text: data.message || `Found ${data.tendersFound} tenders, added ${data.tendersInserted} new` 
+          text: data.summary || data.message || `Scraping job queued successfully` 
         })
         router.refresh()
       } else {
@@ -288,7 +288,7 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
 
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Sources List */}
-        <div className="lg:col-span-2 space-y-4">
+        <div className="lg:col-span-2 space-y-4 order-2 lg:order-1">
           <h2 className="text-lg font-medium text-foreground">Configured Sources</h2>
           
           {sources.length === 0 ? (
@@ -313,13 +313,13 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
                   className={`border-border bg-card ${!source.is_active ? "opacity-60" : ""}`}
                 >
                   <CardContent className="p-6">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex items-start gap-4">
-                        <div className={`rounded-lg p-2.5 ${source.is_active ? "bg-accent/10" : "bg-secondary"}`}>
+                    <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
+                      <div className="flex items-start gap-4 min-w-0 flex-1">
+                        <div className={`rounded-lg p-2.5 ${source.is_active ? "bg-accent/10" : "bg-secondary"} flex-shrink-0`}>
                           <TypeIcon className={`h-5 w-5 ${source.is_active ? "text-accent" : "text-muted-foreground"}`} />
                         </div>
-                        <div>
-                          <div className="flex items-center gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <h3 className="font-medium text-card-foreground">{source.name}</h3>
                             <span className="text-xs rounded-full bg-secondary px-2 py-0.5 text-muted-foreground">
                               {source.type.toUpperCase()}
@@ -329,14 +329,14 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
                             href={source.base_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-muted-foreground hover:text-accent flex items-center gap-1 mt-1"
+                            className="text-sm text-muted-foreground hover:text-accent flex items-center gap-1 mt-1 truncate"
                           >
-                            {source.base_url}
-                            <ExternalLink className="h-3 w-3" />
+                            <span className="truncate">{source.base_url}</span>
+                            <ExternalLink className="h-3 w-3 flex-shrink-0" />
                           </a>
-                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground">
+                          <div className="flex items-center gap-4 mt-3 text-xs text-muted-foreground flex-wrap">
                             <span className="flex items-center gap-1">
-                              <Clock className="h-3.5 w-3.5" />
+                              <Clock className="h-3.5 w-3.5 flex-shrink-0" />
                               Last scraped: {formatRelativeTime(source.last_scraped_at)}
                             </span>
                             <span>{tenderCount} tenders</span>
@@ -344,13 +344,13 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
                         </div>
                       </div>
                       
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-3 flex-shrink-0 lg:flex-row flex-col sm:flex-row">
                         <Button
                           variant="outline"
                           size="sm"
                           onClick={() => handleScrapeSource(source)}
                           disabled={isCurrentlyScraping || !source.is_active}
-                          className="border-accent text-accent hover:bg-accent hover:text-accent-foreground"
+                          className="border-accent text-accent hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
                         >
                           {isCurrentlyScraping ? (
                             <>
@@ -412,7 +412,7 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
         </div>
 
         {/* Recent Scrape Activity */}
-        <div className="space-y-4">
+        <div className="space-y-4 order-1 lg:order-2">
           <h2 className="text-lg font-medium text-foreground">Recent Activity</h2>
           <Card className="border-border bg-card">
             <CardContent className="p-4 space-y-3">

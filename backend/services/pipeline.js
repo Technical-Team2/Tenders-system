@@ -2,11 +2,13 @@ import { createClient } from '@supabase/supabase-js';
 import MultiLayerScraper from './scraper.js';
 import CompanyScraper from './companyScraper.js';
 import AIProcessor from './aiProcessor.js';
+import { scrapeTenders } from './scrapeRouter.js';
 
 class ScrapingPipeline {
   constructor() {
     this.scraper = new MultiLayerScraper();
     this.companyScraper = new CompanyScraper();
+    // AIProcessor is now optional - only instantiate if API key exists
     this.aiProcessor = new AIProcessor();
     
     this.supabase = createClient(
@@ -15,97 +17,306 @@ class ScrapingPipeline {
     );
   }
 
-  async processTenderSource(sourceConfig) {
-    const { url, name, selectors, companyUrl } = sourceConfig;
-    
-    try {
-      console.log(`Starting pipeline for source: ${name} (${url})`);
+  // Helper function to normalize URL
+  normalizeUrl(url) {
+    if (!url) return url;
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+      return `https://${url}`;
+    }
+    return url;
+  }
+
+  // Helper function to normalize numeric values
+  normalizeNumber(value, fieldName = 'value') {
+    if (value === null || value === undefined) {
+      return null;
+    }
+
+    if (typeof value === 'number') {
+      if (isNaN(value)) {
+        console.warn(`⚠️  ${fieldName}: NaN detected, converting to null`);
+        return null;
+      }
+      return value;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (trimmed === '' || trimmed === '-' || trimmed === 'N/A' || trimmed.toLowerCase() === 'null') {
+        console.log(`ℹ️  ${fieldName}: Empty/null string detected, converting to null (original: "${value}")`);
+        return null;
+      }
       
-      // Step 1: Fetch and parse tender listings
-      const scrapeResult = await this.scraper.scrapeWebsite({
-        url,
-        strategy: 'axios',
-        selectors,
-        retryCount: 3
-      });
+      // Try to parse the number
+      const parsed = parseFloat(trimmed.replace(/,/g, ''));
+      if (isNaN(parsed)) {
+        console.warn(`⚠️  ${fieldName}: Invalid number format, converting to null (original: "${value}")`);
+        return null;
+      }
+      console.log(`✅ ${fieldName}: Normalized "${value}" → ${parsed}`);
+      return parsed;
+    }
 
-      // Step 2: Extract tender details using AI
-      const tenderDetails = await this.aiProcessor.extractTenderDetails(
-        scrapeResult.html, 
-        url
-      );
+    console.warn(`⚠️  ${fieldName}: Invalid type ${typeof value}, converting to null (original: ${JSON.stringify(value)})`);
+    return null;
+  }
 
-      // Step 3: Clean and structure the data
-      const cleanedData = await this.aiProcessor.cleanData(
-        JSON.stringify(tenderDetails)
-      );
+  // Helper function to parse money strings (e.g., "KES 1,000,000", "$500,000")
+  parseMoney(value, fieldName = 'money') {
+    if (value === null || value === undefined) {
+      return null;
+    }
 
-      // Step 4: Classify the tender
-      const classification = await this.aiProcessor.classifyTender(tenderDetails);
+    if (typeof value === 'number') {
+      return this.normalizeNumber(value, fieldName);
+    }
 
-      // Step 5: Extract company information if available
-      let companyInfo = null;
-      if (companyUrl) {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      
+      // Remove currency symbols and common patterns
+      let cleaned = trimmed
+        .replace(/[^\d.,-]/g, '') // Remove everything except digits, dots, commas, minus
+        .replace(/,/g, ''); // Remove commas (thousands separators)
+      
+      // Handle empty after cleaning
+      if (cleaned === '' || cleaned === '-' || cleaned === '.') {
+        console.log(`ℹ️  ${fieldName}: Empty after cleaning, converting to null (original: "${value}")`);
+        return null;
+      }
+      
+      const parsed = parseFloat(cleaned);
+      if (isNaN(parsed)) {
+        console.warn(`⚠️  ${fieldName}: Failed to parse money, converting to null (original: "${value}")`);
+        return null;
+      }
+      
+      console.log(`💰 ${fieldName}: Parsed "${value}" → ${parsed}`);
+      return parsed;
+    }
+
+    console.warn(`⚠️  ${fieldName}: Invalid type ${typeof value}, converting to null (original: ${JSON.stringify(value)})`);
+    return null;
+  }
+
+  normalizeDate(value, fieldName = 'date') {
+    if (!value) {
+      return null;
+    }
+
+    const parsed = new Date(value);
+    if (isNaN(parsed.getTime())) {
+      console.warn(`Invalid ${fieldName} detected, converting to null (original: "${value}")`);
+      return null;
+    }
+
+    return parsed.toISOString();
+  }
+
+  // Helper function to validate and sanitize tender data before insert
+  validateTenderData(tenderData) {
+    const validated = { ...tenderData };
+
+    // Ensure categories is an array
+    if (!Array.isArray(validated.categories)) {
+      if (typeof validated.categories === 'string') {
         try {
-          companyInfo = await this.companyScraper.scrapeCompany(companyUrl);
-          const enrichedCompany = await this.aiProcessor.enrichCompany(companyInfo);
-          companyInfo = { ...companyInfo, ...enrichedCompany };
+          validated.categories = JSON.parse(validated.categories);
+        } catch {
+          validated.categories = [];
+        }
+      } else {
+        validated.categories = [];
+      }
+    }
+
+    // Ensure contact_info is an object
+    if (typeof validated.contact_info !== 'object' || validated.contact_info === null) {
+      if (typeof validated.contact_info === 'string') {
+        try {
+          validated.contact_info = JSON.parse(validated.contact_info);
+        } catch {
+          validated.contact_info = {};
+        }
+      } else {
+        validated.contact_info = {};
+      }
+    }
+
+    // Ensure documents is an array
+    if (!Array.isArray(validated.documents)) {
+      if (typeof validated.documents === 'string') {
+        try {
+          validated.documents = JSON.parse(validated.documents);
+        } catch {
+          validated.documents = [];
+        }
+      } else {
+        validated.documents = [];
+      }
+    }
+
+    // Ensure requirements is a string or array converted to string
+    if (Array.isArray(validated.requirements)) {
+      validated.requirements = validated.requirements.join(', ');
+    } else if (typeof validated.requirements !== 'string') {
+      validated.requirements = '';
+    }
+
+    // Ensure metadata is an object
+    if (typeof validated.metadata !== 'object' || validated.metadata === null) {
+      if (typeof validated.metadata === 'string') {
+        try {
+          validated.metadata = JSON.parse(validated.metadata);
+        } catch {
+          validated.metadata = {};
+        }
+      } else {
+        validated.metadata = {};
+      }
+    }
+
+    // Normalize all numeric fields
+    // Budget - use parseMoney for currency values
+    validated.budget = this.parseMoney(validated.budget, 'budget');
+
+    // Score - use normalizeNumber for simple numeric scores
+    validated.score = this.normalizeNumber(validated.score, 'score') || 0.5;
+
+    // Priority - validate enum
+    if (!['high', 'medium', 'low'].includes(validated.priority)) {
+      validated.priority = 'medium';
+    }
+
+    // Handle any additional numeric fields that might be in the data
+    // e.g., estimated_value, price, etc.
+    if ('estimated_value' in validated) {
+      validated.estimated_value = this.parseMoney(validated.estimated_value, 'estimated_value');
+    }
+    if ('price' in validated) {
+      validated.price = this.parseMoney(validated.price, 'price');
+    }
+    if ('value' in validated) {
+      validated.value = this.parseMoney(validated.value, 'value');
+    }
+
+    return validated;
+  }
+
+  getBaseTenderData(tenderData) {
+    return {
+      title: tenderData.title,
+      description: tenderData.description,
+      organization: tenderData.organization,
+      sector: tenderData.sector,
+      location: tenderData.location,
+      deadline: tenderData.deadline,
+      budget: tenderData.budget,
+      currency: tenderData.currency || 'KES',
+      source_id: tenderData.source_id || null,
+      source_url: tenderData.source_url,
+      status: tenderData.status || 'new'
+    };
+  }
+
+  async processTenderSource(sourceConfig) {
+    const { url, name, sourceId } = sourceConfig;
+    const normalizedUrl = this.normalizeUrl(url);
+
+    try {
+      console.log(`Starting pipeline for source: ${name} (${normalizedUrl})`);
+      const scrapeResult = await scrapeTenders(normalizedUrl);
+
+      if (!scrapeResult.success) {
+        return {
+          success: false,
+          source: scrapeResult.source,
+          error: scrapeResult.error || 'Scraper failed',
+          reason: 'Scraper failed',
+          message: `Failed to scrape ${normalizedUrl}: ${scrapeResult.error || 'Unknown error'}`
+        };
+      }
+
+      const extractedRecords = scrapeResult.data || [];
+
+      if (extractedRecords.length === 0) {
+        return {
+          success: false,
+          source: scrapeResult.source,
+          error: 'No records found',
+          reason: 'No records found',
+          message: 'Page did not yield any extractable tender records.'
+        };
+      }
+
+      const insertedTenders = [];
+      const insertErrors = [];
+
+      for (const extractedData of extractedRecords) {
+        const tenderRecord = {
+          title: extractedData.title || 'Untitled Tender',
+          description: extractedData.description || 'No description available',
+          organization: extractedData.organization || name,
+          deadline: this.normalizeDate(extractedData.deadline || extractedData.date || extractedData.closing_date, 'deadline'),
+          source_url: extractedData.source_url || normalizedUrl,
+          source_id: sourceId || null,
+          source_name: name,
+          status: 'new',
+          reference: extractedData.reference || null,
+          requirements: [],
+          contact_info: {},
+          documents: [],
+          categories: extractedData.category ? [extractedData.category] : [],
+          scraped_at: new Date().toISOString(),
+          sector: 'other',
+          priority: 'medium',
+          score: 0.5,
+          location: extractedData.location,
+          budget: extractedData.budget,
+          metadata: {
+            ...(extractedData.metadata || {}),
+            extraction_method: scrapeResult.source,
+            extraction_valid: true
+          }
+        };
+
+        const validatedTender = this.validateTenderData(tenderRecord);
+
+        try {
+          const storedTender = await this.storeTenderWithDeduplication(validatedTender);
+          insertedTenders.push(storedTender);
         } catch (error) {
-          console.error(`Failed to scrape company info: ${error.message}`);
+          console.error(`Failed to store tender from ${normalizedUrl}: ${error.message}`);
+          insertErrors.push(error.message);
         }
       }
 
-      // Step 6: Create tender record
-      const tenderRecord = {
-        title: tenderDetails.title || cleanedData.cleanedText.substring(0, 100),
-        description: tenderDetails.description || cleanedData.cleanedText,
-        organization: tenderDetails.organization || name,
-        deadline: tenderDetails.deadline ? new Date(tenderDetails.deadline).toISOString() : null,
-        budget: tenderDetails.budget,
-        source_url: url,
-        source_name: name,
-        status: 'new',
-        reference: tenderDetails.reference,
-        requirements: tenderDetails.requirements || [],
-        contact_info: tenderDetails.contactInfo || {},
-        documents: tenderDetails.documents || [],
-        categories: tenderDetails.categories || [],
-        scraped_at: new Date().toISOString(),
-        ...classification
-      };
-
-      // Step 7: Check for duplicates and store in database
-      const storedTender = await this.storeTenderWithDeduplication(tenderRecord);
-
-      // Step 8: Store company information if available
-      if (companyInfo && storedTender) {
-        await this.storeCompanyInfo(companyInfo, storedTender.id);
+      if (insertedTenders.length === 0) {
+        return {
+          success: false,
+          source: scrapeResult.source,
+          error: insertErrors[0] || 'No tenders were stored',
+          reason: 'Database insert failed',
+          message: `Extracted ${extractedRecords.length} tender(s), but none could be stored in the database.`,
+          extractedCount: extractedRecords.length,
+          insertErrors
+        };
       }
 
-      // Step 9: Log the scraping activity
-      await this.logScrapingActivity({
-        source_url: url,
-        source_name: name,
-        status: 'success',
-        tenders_found: 1,
-        strategy_used: scrapeResult.strategy,
-        processing_time: Date.now()
-      });
-
-      console.log(`Pipeline completed successfully for: ${name}`);
       return {
         success: true,
-        tender: storedTender,
-        company: companyInfo,
-        classification
+        source: scrapeResult.source,
+        extractedCount: extractedRecords.length,
+        count: insertedTenders.length,
+        tenders: insertedTenders,
+        insertErrors,
+        message: `Successfully extracted and stored ${insertedTenders.length} tender(s)`
       };
-
     } catch (error) {
       console.error(`Pipeline failed for ${name}:`, error.message);
-      
-      // Log the failure
+
       await this.logScrapingActivity({
-        source_url: url,
+        source_url: normalizedUrl,
         source_name: name,
         status: 'failed',
         error: error.message,
@@ -115,7 +326,6 @@ class ScrapingPipeline {
       throw error;
     }
   }
-
   async storeTenderWithDeduplication(tenderData) {
     try {
       // Check for existing tender with same title and source
@@ -127,11 +337,13 @@ class ScrapingPipeline {
         .single();
 
       if (checkError && checkError.code !== 'PGRST116') {
+        console.error('❌ Supabase check error:', checkError);
+        console.error('Error details:', checkError);
         throw checkError;
       }
 
       if (existing) {
-        console.log(`Tender already exists: ${tenderData.title}`);
+        console.log(`📝 Tender already exists, updating: ${tenderData.title}`);
         // Update existing tender
         const { data: updated, error: updateError } = await this.supabase
           .from('tenders')
@@ -143,7 +355,33 @@ class ScrapingPipeline {
           .select()
           .single();
 
-        if (updateError) throw updateError;
+        if (updateError) {
+          if (updateError.code === 'PGRST204' || /column|schema cache/i.test(updateError.message || '')) {
+            console.warn('Tender update used fields missing from the current database schema; retrying with base tender fields.');
+            const { data: baseUpdated, error: baseUpdateError } = await this.supabase
+              .from('tenders')
+              .update({
+                ...this.getBaseTenderData(tenderData),
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existing.id)
+              .select()
+              .single();
+
+            if (!baseUpdateError) {
+              console.log(`✅ Tender updated successfully with base schema`);
+              return baseUpdated;
+            }
+
+            console.error('❌ Supabase base update error:', baseUpdateError);
+          }
+
+          console.error('❌ Supabase update error:', updateError);
+          console.error('Error details:', updateError);
+          console.error('Failed field(s):', Object.keys(tenderData));
+          throw updateError;
+        }
+        console.log(`✅ Tender updated successfully`);
         return updated;
       }
 
@@ -154,11 +392,35 @@ class ScrapingPipeline {
         .select()
         .single();
 
-      if (insertError) throw insertError;
+      if (insertError) {
+        if (insertError.code === 'PGRST204' || /column|schema cache/i.test(insertError.message || '')) {
+          console.warn('Tender insert used fields missing from the current database schema; retrying with base tender fields.');
+          const { data: baseInserted, error: baseInsertError } = await this.supabase
+            .from('tenders')
+            .insert(this.getBaseTenderData(tenderData))
+            .select()
+            .single();
+
+          if (!baseInsertError) {
+            console.log(`✅ Tender inserted successfully with base schema`);
+            return baseInserted;
+          }
+
+          console.error('❌ Supabase base insert error:', baseInsertError);
+        }
+
+        console.error('❌ Supabase insert error:', insertError);
+        console.error('Error details:', insertError);
+        console.error('Failed field(s):', Object.keys(tenderData));
+        console.error('Field values:', JSON.stringify(tenderData, null, 2));
+        throw insertError;
+      }
+      console.log(`✅ Tender inserted successfully`);
       return inserted;
 
     } catch (error) {
-      console.error('Error storing tender:', error.message);
+      console.error('❌ Error storing tender:', error.message);
+      console.error('Error stack:', error.stack);
       throw error;
     }
   }
@@ -310,3 +572,4 @@ class ScrapingPipeline {
 }
 
 export default ScrapingPipeline;
+

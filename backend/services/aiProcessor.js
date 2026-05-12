@@ -2,12 +2,41 @@ import OpenAI from 'openai';
 
 class AIProcessor {
   constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY
-    });
+    this.enabled = false;
+    this.openai = null;
+
+    // Only enable if API key is present
+    if (process.env.OPENAI_API_KEY && process.env.OPENAI_API_KEY.trim() !== '') {
+      try {
+        this.openai = new OpenAI({
+          apiKey: process.env.OPENAI_API_KEY
+        });
+        this.enabled = true;
+        console.log('✅ AI Processor enabled (OPENAI_API_KEY found)');
+      } catch (error) {
+        console.warn('⚠️  Failed to initialize OpenAI:', error.message);
+        this.enabled = false;
+      }
+    } else {
+      console.log('⚠️  AI Processor disabled (OPENAI_API_KEY not set)');
+    }
+  }
+
+  isEnabled() {
+    return this.enabled;
   }
 
   async cleanData(rawText) {
+    // Return early if AI is disabled
+    if (!this.enabled) {
+      return {
+        cleanedText: rawText.replace(/\s+/g, ' ').trim(),
+        type: 'other',
+        confidence: 0.5,
+        keyPoints: []
+      };
+    }
+
     try {
       const prompt = `
         Clean and structure the following raw scraped text into a clean, readable format.
@@ -46,6 +75,19 @@ class AIProcessor {
   }
 
   async classifyTender(tender) {
+    // Return early if AI is disabled
+    if (!this.enabled) {
+      return {
+        sector: 'other',
+        priority: 'medium',
+        score: 0.5,
+        tags: [],
+        estimatedValue: 'unknown',
+        complexity: 'moderate',
+        requirements: []
+      };
+    }
+
     try {
       const prompt = `
         Analyze this tender opportunity and classify it with relevant tags and priority score.
@@ -93,6 +135,20 @@ class AIProcessor {
   }
 
   async enrichCompany(company) {
+    // Return early if AI is disabled
+    if (!this.enabled) {
+      return {
+        normalizedIndustry: company.industry || 'other',
+        companySize: 'medium',
+        businessType: 'private',
+        reliabilityScore: 0.5,
+        specializations: [],
+        geographicScope: 'local',
+        keyServices: [],
+        riskLevel: 'medium'
+      };
+    }
+
     try {
       const prompt = `
         Enrich and normalize this company information using AI analysis.
@@ -142,6 +198,22 @@ class AIProcessor {
   }
 
   async extractTenderDetails(html, url) {
+    // Return early if AI is disabled
+    if (!this.enabled) {
+      return {
+        title: null,
+        reference: null,
+        description: null,
+        organization: null,
+        deadline: null,
+        budget: null,
+        requirements: [],
+        contactInfo: {},
+        documents: [],
+        categories: []
+      };
+    }
+
     try {
       const prompt = `
         Extract detailed tender information from this HTML content.
@@ -195,6 +267,17 @@ class AIProcessor {
   }
 
   async summarizeTender(tender) {
+    // Return early if AI is disabled
+    if (!this.enabled) {
+      return {
+        summary: tender.description || 'No description available',
+        keyHighlights: [],
+        actionItems: [],
+        timeToDeadline: 'Unknown',
+        suitabilityScore: 0.5
+      };
+    }
+
     try {
       const prompt = `
         Create a concise summary of this tender for quick review.

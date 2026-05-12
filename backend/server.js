@@ -84,6 +84,11 @@ app.use('/api/scrape-tenders', async (req, res, next) => {
   scrapeTenders.default(req, res, next)
 })
 
+app.use('/scrape', async (req, res, next) => {
+  const scrapeTenders = await import('./routes/scrape-tenders.js')
+  scrapeTenders.default(req, res, next)
+})
+
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack)
@@ -96,8 +101,9 @@ app.use((req, res) => {
 })
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`Backend server running on port ${PORT}`)
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`✅ Backend server running on http://0.0.0.0:${PORT}`)
+  console.log(`✅ Backend accessible at http://localhost:${PORT}`)
   console.log('Available endpoints:')
   console.log('  POST /api/auth/signin - User sign in')
   console.log('  POST /api/auth/signup - User sign up')
@@ -107,6 +113,7 @@ app.listen(PORT, () => {
   console.log('  GET /api/tender-sources - List tender sources')
   console.log('  POST /api/ai/score-tender - Score a tender')
   console.log('  POST /api/scrape-tenders - Scrape single tender source')
+  console.log('  POST /scrape - Scrape one or more tender sources')
   console.log('  GET /api/scrape-tenders/status/:jobId - Get job status')
   console.log('  GET /health - Health check')
 })
