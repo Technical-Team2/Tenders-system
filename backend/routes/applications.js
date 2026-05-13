@@ -1,18 +1,14 @@
 import express from 'express'
-import { createClient } from '@supabase/supabase-js'
 
 const router = express.Router()
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
 
 // Get all applications
 router.get('/', async (req, res) => {
   try {
+    const supabase = req.supabase
     const { data, error } = await supabase
       .from('applications')
-      .select('*')
+      .select('*, tenders(*, tender_scores(*))')
       .order('created_at', { ascending: false })
 
     if (error) {
@@ -28,11 +24,12 @@ router.get('/', async (req, res) => {
 // Create application
 router.post('/', async (req, res) => {
   try {
-    const { tender_id, status, notes } = req.body
+    const supabase = req.supabase
+    const { tender_id, status, notes, documents } = req.body
 
     const { data, error } = await supabase
       .from('applications')
-      .insert([{ tender_id, status, notes }])
+      .insert([{ tender_id, status, notes, documents }])
       .select()
 
     if (error) {
@@ -49,11 +46,12 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const { tender_id, status, notes } = req.body
+    const supabase = req.supabase
+    const updates = req.body
 
     const { data, error } = await supabase
       .from('applications')
-      .update({ tender_id, status, notes })
+      .update(updates)
       .eq('id', id)
       .select()
 
@@ -71,6 +69,7 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const { id } = req.params
+    const supabase = req.supabase
 
     const { error } = await supabase
       .from('applications')

@@ -84,12 +84,12 @@ router.post('/', async (req, res) => {
 router.put('/:id', async (req, res) => {
   try {
     const { id } = req.params
-    const { title, description, deadline, source_url, status } = req.body
     const supabase = req.supabase
+    const updates = req.body
 
     const { data, error } = await supabase
       .from('tenders')
-      .update({ title, description, deadline, source_url, status })
+      .update(updates)
       .eq('id', id)
       .select()
 

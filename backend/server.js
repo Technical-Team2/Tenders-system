@@ -23,10 +23,19 @@ async function getSupabase() {
 
 // Middleware
 app.use(helmet())
+const allowedOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean)
+
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? process.env.FRONTEND_URL || 'https://yourdomain.com'
-    : 'http://localhost:3000',
+  origin(origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true)
+    }
+
+    return callback(new Error('Not allowed by CORS'))
+  },
   credentials: true
 }))
 app.use(express.json({ limit: '10mb' }))
@@ -103,7 +112,7 @@ app.use((req, res) => {
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Backend server running on http://0.0.0.0:${PORT}`)
-  console.log(`✅ Backend accessible at http://localhost:${PORT}`)
+  console.log(`Backend API origin is configured by deployment environment`)
   console.log('Available endpoints:')
   console.log('  POST /api/auth/signin - User sign in')
   console.log('  POST /api/auth/signup - User sign up')

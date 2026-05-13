@@ -54,8 +54,8 @@ async function testAuth() {
     console.log('\n✅ Authentication setup test complete');
     console.log('\nNext steps:');
     console.log('1. Run the SQL script if user_profiles table doesn\'t exist');
-    console.log('2. Test sign-up at http://localhost:3000/signup');
-    console.log('3. Test sign-in at http://localhost:3000/signin');
+    console.log('2. Test sign-up in the configured frontend environment.');
+    console.log('3. Test sign-in in the configured frontend environment.');
     console.log('4. Check user_profiles table for new records');
     
   } catch (error) {
