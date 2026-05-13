@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from "react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { 
   Search, 
   Filter, 
@@ -61,6 +62,7 @@ function getDaysUntilDeadline(deadline: string | null) {
 }
 
 export function TendersListContent({ tenders, sources, sectors }: TendersListContentProps) {
+  const router = useRouter()
   const [searchQuery, setSearchQuery] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
   const [sectorFilter, setSectorFilter] = useState<string>("all")
@@ -232,8 +234,12 @@ export function TendersListContent({ tenders, sources, sectors }: TendersListCon
             const isPast = daysUntil !== null && daysUntil < 0
 
             return (
-              <Link key={tender.id} href={`/tenders/${tender.id}`}>
-                <Card className="border-border bg-card hover:border-primary/50 transition-colors cursor-pointer">
+              <div 
+                key={tender.id} 
+                onClick={() => router.push(`/tenders/${tender.id}`)}
+                className="cursor-pointer"
+              >
+                <Card className="border-border bg-card hover:border-primary/50 transition-colors">
                   <CardContent className="p-6">
                     <div className="flex items-start gap-6">
                       {/* Score */}
@@ -278,7 +284,7 @@ export function TendersListContent({ tenders, sources, sectors }: TendersListCon
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 onClick={(e) => e.stopPropagation()}
-                                className="text-muted-foreground hover:text-foreground"
+                                className="text-muted-foreground hover:text-foreground relative z-10"
                               >
                                 <ExternalLink className="h-4 w-4" />
                               </a>
@@ -316,7 +322,7 @@ export function TendersListContent({ tenders, sources, sectors }: TendersListCon
                     </div>
                   </CardContent>
                 </Card>
-              </Link>
+              </div>
             )
           })
         )}

@@ -7,7 +7,7 @@ function isPublicPath(pathname: string) {
   return publicPaths.some((path) => pathname === path || (path !== '/' && pathname.startsWith(path)))
 }
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const apiUrl = process.env.NEXT_PUBLIC_API_URL
 
   if (!apiUrl) {
