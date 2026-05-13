@@ -1,19 +1,10 @@
 "use server"
 
-import { createClient } from "@/lib/supabase/server"
+import { apiClient } from "@/lib/api/client"
 import { revalidatePath } from "next/cache"
 
 export async function updateTenderStatus(tenderId: string, status: string) {
-  const supabase = await createClient()
-
-  const { error } = await supabase
-    .from("tenders")
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq("id", tenderId)
-
-  if (error) {
-    throw new Error(`Failed to update tender status: ${error.message}`)
-  }
+  await apiClient.updateTenderStatus(tenderId, status)
 
   revalidatePath(`/tenders/${tenderId}`)
   revalidatePath("/tenders")
@@ -21,39 +12,8 @@ export async function updateTenderStatus(tenderId: string, status: string) {
 }
 
 export async function createApplication(tenderId: string) {
-  const supabase = await createClient()
-
-  // Check if application already exists
-  const { data: existing } = await supabase
-    .from("applications")
-    .select("id")
-    .eq("tender_id", tenderId)
-    .single()
-
-  if (existing) {
-    return existing
-  }
-
-  const { data, error } = await supabase
-    .from("applications")
-    .insert({
-      tender_id: tenderId,
-      status: "draft",
-      notes: "",
-      documents: [],
-    })
-    .select()
-    .single()
-
-  if (error) {
-    throw new Error(`Failed to create application: ${error.message}`)
-  }
-
-  // Update tender status to applied
-  await supabase
-    .from("tenders")
-    .update({ status: "applied", updated_at: new Date().toISOString() })
-    .eq("id", tenderId)
+  const data = await apiClient.createDraftApplication(tenderId)
+  await apiClient.updateTenderStatus(tenderId, "applied")
 
   revalidatePath(`/tenders/${tenderId}`)
   revalidatePath("/tenders")

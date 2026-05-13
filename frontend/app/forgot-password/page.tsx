@@ -9,7 +9,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { ChevronLeft, Building, Mail } from 'lucide-react'
 import { toast } from 'sonner'
-import { resetPassword } from '@/lib/supabase/client-auth'
+import { resetPassword } from '@/lib/auth/client'
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('')

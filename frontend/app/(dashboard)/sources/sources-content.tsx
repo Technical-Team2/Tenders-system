@@ -58,6 +58,7 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import { toggleSource, addSource, deleteSource } from "./actions"
+import { apiClient } from "@/lib/api/client"
 import type { TenderSource, ScrapeLog } from "@/lib/types"
 
 interface SourcesContentProps {
@@ -128,23 +129,13 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
     setScrapeMessage(null)
     
     try {
-      const response = await fetch("http://localhost:3001/api/scrape-tenders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sourceUrl: source.base_url, sourceId: source.id }),
+      const data: any = await apiClient.scrapeTenderSource(source.base_url, source.id)
+
+      setScrapeMessage({
+        type: "success",
+        text: data.summary || data.message || "Scraping job queued successfully",
       })
-      
-      const data = await response.json()
-      
-      if (response.ok) {
-        setScrapeMessage({ 
-          type: "success", 
-          text: data.summary || data.message || `Scraping job queued successfully` 
-        })
-        router.refresh()
-      } else {
-        setScrapeMessage({ type: "error", text: data.error || "Scraping failed" })
-      }
+      router.refresh()
     } catch (error) {
       setScrapeMessage({ 
         type: "error", 

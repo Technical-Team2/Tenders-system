@@ -1,14 +1,13 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Separator } from '@/components/ui/separator'
 import { Icons } from '@/components/ui/icons'
 import { useRouter } from 'next/navigation'
-import { signIn, signUp, signInWithGoogle } from '@/lib/auth/client'
+import { useAuth } from '@/lib/auth/context'
 import { toast } from 'sonner'
 import { Eye, EyeOff } from 'lucide-react'
 
@@ -29,6 +28,7 @@ export function AuthForm({ type, className }: AuthFormProps) {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const router = useRouter()
+  const { signIn, signUp } = useAuth()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -50,25 +50,15 @@ export function AuthForm({ type, className }: AuthFormProps) {
     try {
       if (type === 'signin') {
         const result = await signIn(email, password)
-        console.log('Sign in result:', result)
-        console.log('Result success:', result.success)
-        console.log('Result data:', result.data)
-        console.log('User data:', result.data?.user)
-        console.log('Session data:', result.data?.session)
-        console.log('User role:', result.data?.user?.role)
         if (result.success) {
-          // Check if authentication actually completed successfully
           const user = result.data?.user
           const session = result.data?.session
           
           if (user && session) {
             toast.success('Signed in successfully')
-            console.log('Authentication successful, redirecting to dashboard...')
-            // Use Next.js router for proper client-side navigation
             router.push('/dashboard')
           } else {
             toast.error('Authentication incomplete. Please try again.')
-            console.error('Authentication incomplete:', { user, session })
           }
         } else {
           toast.error(result.error || 'Failed to sign in')
@@ -79,8 +69,6 @@ export function AuthForm({ type, className }: AuthFormProps) {
           username: username || email.split('@')[0]
         })
         console.log('Signup result:', result)
-        console.log('User data:', result.data?.user)
-        console.log('User role:', result.data?.user?.role)
         
         if (result.success) {
           const user = result.data?.user
@@ -90,7 +78,6 @@ export function AuthForm({ type, className }: AuthFormProps) {
           // If session exists (auto-login after signup), redirect to dashboard
           if (session) {
             toast.success('Account created successfully! You are now signed in.')
-            console.log('Signup successful with session, redirecting to dashboard...')
             router.push('/dashboard')
           } 
           // If email confirmation is required
@@ -128,22 +115,6 @@ export function AuthForm({ type, className }: AuthFormProps) {
             toast.error(result.error || 'Failed to create account')
           }
         }
-      }
-    } catch (error) {
-      toast.error('An unexpected error occurred')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const handleGoogleSignIn = async () => {
-    setLoading(true)
-    try {
-      const result = await signInWithGoogle()
-      if (result.success) {
-        toast.success('Redirecting to Google...')
-      } else {
-        toast.error(result.error || 'Failed to sign in with Google')
       }
     } catch (error) {
       toast.error('An unexpected error occurred')
@@ -285,31 +256,7 @@ export function AuthForm({ type, className }: AuthFormProps) {
             ) : null}
             {type === 'signin' ? 'Sign In' : 'Create Account'}
           </Button>
-          
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <Separator className="w-full" />
-            </div>
-            <div className="relative flex justify-center text-xs uppercase">
-              <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
-            </div>
-          </div>
-          
-          <Button
-            type="button"
-            variant="outline"
-            className="w-full"
-            onClick={handleGoogleSignIn}
-            disabled={loading}
-          >
-            {loading ? (
-              <Icons.spinner className="mr-2 h-4 w-4 animate-spin" />
-            ) : (
-              <Icons.google className="mr-2 h-4 w-4" />
-            )}
-            Google
-          </Button>
-          
+
           {type === 'signin' && (
             <p className="text-center text-sm text-muted-foreground">
               <a href="/forgot-password" className="text-primary hover:underline">

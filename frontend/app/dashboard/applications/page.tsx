@@ -1,13 +1,5 @@
-import { createClient } from "@/lib/supabase/server"
-import { ApplicationsContent } from "../../(dashboard)/applications/applications-content"
+import { ApplicationsPageClient } from "../../(dashboard)/applications/applications-page-client"
 
 export default async function ApplicationsPage() {
-  const supabase = await createClient()
-
-  const { data: applications } = await supabase
-    .from("applications")
-    .select("*, tenders(*, tender_scores(*))")
-    .order("created_at", { ascending: false })
-
-  return <ApplicationsContent applications={applications || []} />
+  return <ApplicationsPageClient />
 }

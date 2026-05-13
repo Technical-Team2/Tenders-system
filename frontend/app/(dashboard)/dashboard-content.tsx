@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { getCurrentUserLocal } from '@/lib/supabase/client-auth'
+import { useAuth } from '@/lib/auth/context'
 import { ScoreBadge } from '@/components/score-badge'
 import { StatusBadge } from '@/components/status-badge'
 import type { Application, DashboardStats, ScrapeLog, Tender } from '@/lib/types'
@@ -79,20 +79,19 @@ export function DashboardContent({
   scrapeLogs 
 }: DashboardContentProps) {
   const [userName, setUserName] = useState<string | null>(null)
+  const { user } = useAuth()
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      const user = await getCurrentUserLocal()
-      if (user?.user_metadata?.username) {
-        setUserName(user.user_metadata.username)
-      } else if (user?.user_metadata?.full_name) {
-        setUserName(user.user_metadata.full_name)
-      } else if (user?.email) {
-        setUserName(user.email.split('@')[0])
-      }
+    if (user?.user_metadata?.username) {
+      setUserName(user.user_metadata.username)
+    } else if (user?.user_metadata?.full_name) {
+      setUserName(user.user_metadata.full_name)
+    } else if (user?.email) {
+      setUserName(user.email.split('@')[0])
+    } else {
+      setUserName(null)
     }
-    fetchUserData()
-  }, [])
+  }, [user])
 
   const highScoreTenders = [...recentTenders]
     .filter((tender) => (tender.tender_scores?.[0]?.score ?? 0) >= 80)

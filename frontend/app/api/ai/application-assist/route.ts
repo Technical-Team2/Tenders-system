@@ -1,50 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { generateApplicationAssistance } from '@/lib/ai/client'
-import { createClient } from '@/lib/supabase/server'
+import { API_BASE_URL } from '@/lib/api/config'
 
 export async function POST(request: NextRequest) {
-  try {
-    const { tenderId } = await request.json()
+  const response = await fetch(`${API_BASE_URL}/api/ai/application-assist`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      cookie: request.headers.get('cookie') || '',
+    },
+    body: JSON.stringify(await request.json()),
+    credentials: 'include',
+  })
 
-    if (!tenderId) {
-      return NextResponse.json(
-        { error: 'Tender ID is required' },
-        { status: 400 }
-      )
-    }
-
-    // Get tender details from database
-    const supabase = await createClient()
-    const { data: tender, error: tenderError } = await supabase
-      .from('tenders')
-      .select('*')
-      .eq('id', tenderId)
-      .single()
-
-    if (tenderError || !tender) {
-      return NextResponse.json(
-        { error: 'Tender not found' },
-        { status: 404 }
-      )
-    }
-
-    // Generate application assistance using AI
-    const assistance = await generateApplicationAssistance(
-      tender.title,
-      tender.description || '',
-      tender.deadline || 'Not specified'
-    )
-
-    return NextResponse.json({
-      success: true,
-      assistance
-    })
-
-  } catch (error) {
-    console.error('Error in application-assist API:', error)
-    return NextResponse.json(
-      { error: 'Failed to generate application assistance' },
-      { status: 500 }
-    )
-  }
+  const data = await response.json().catch(() => ({}))
+  return NextResponse.json(data, { status: response.status })
 }

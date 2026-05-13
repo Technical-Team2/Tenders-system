@@ -2,7 +2,6 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { useRouter } from "next/navigation"
 import {
   LayoutDashboard,
   FileSearch,
@@ -17,8 +16,8 @@ import {
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { signOutUser, getCurrentUserLocal } from "@/lib/supabase/client-auth"
 import { useState, useEffect } from "react"
+import { useAuth } from "@/lib/auth/context"
 
 const navigation = [
   { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
@@ -31,26 +30,17 @@ const navigation = [
 
 export function AppSidebar() {
   const pathname = usePathname()
-  const router = useRouter()
   const [userEmail, setUserEmail] = useState<string | null>(null)
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const { user, loading, logout } = useAuth()
 
   const handleSignOut = async () => {
-    const result = await signOutUser()
-    if (result.success) {
-      router.push('/signin')
-    }
+    await logout()
   }
 
   useEffect(() => {
-    const fetchUser = async () => {
-      const user = await getCurrentUserLocal()
-      if (user?.email) {
-        setUserEmail(user.email)
-      }
-    }
-    fetchUser()
-  }, [])
+    setUserEmail(user?.email || null)
+  }, [user])
 
   return (
     <>
@@ -119,7 +109,7 @@ export function AppSidebar() {
                 <User className="h-4 w-4 text-sidebar-foreground flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-sidebar-foreground truncate">
-                    {userEmail || 'Loading...'}
+                    {loading ? 'Loading...' : userEmail || 'Signed in'}
                   </p>
                   <p className="text-xs text-sidebar-foreground/60">Account</p>
                 </div>

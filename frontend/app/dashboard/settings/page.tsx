@@ -1,8 +1,7 @@
 'use client'
 
 import React, { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { signOutUser } from '@/lib/supabase/client-auth'
+import { useAuth } from '@/lib/auth/context'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -58,7 +57,7 @@ interface AccountSettings {
 
 
 export default function SettingsPage() {
-  const router = useRouter()
+  const { logout } = useAuth()
   const [activeTab, setActiveTab] = useState<'notifications' | 'account'>('notifications')
   const [notificationSettings, setNotificationSettings] = useState<NotificationSettings>({
     emailEnabled: true,
@@ -104,10 +103,7 @@ export default function SettingsPage() {
 
 
   const handleSignOut = async () => {
-    const result = await signOutUser()
-    if (result.success) {
-      router.push('/signin')
-    }
+    await logout()
   }
 
   const handleDeleteAccount = () => {
