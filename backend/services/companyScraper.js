@@ -1,3 +1,4 @@
+import axios from 'axios';
 import * as cheerio from 'cheerio';
 import puppeteer from 'puppeteer';
 import { getRandomUserAgent, delay, retry } from '../utils/antiBlock.js';
@@ -25,6 +26,22 @@ class CompanyScraper {
         { element: '.category', text: true },
         { element: '[property="business:category"]', attr: 'content' }
       ],
+      businessType: [
+        { element: '[itemprop="businessType"]', text: true },
+        { element: '[class*="business-type"]', text: true },
+        { element: '[id*="business-type"]', text: true }
+      ],
+      missionStatement: [
+        { element: '.mission-statement', text: true },
+        { element: '[itemprop="mission"]', text: true },
+        { element: '[class*="mission"]', text: true },
+        { element: '[id*="mission"]', text: true }
+      ],
+      corporatePurpose: [
+        { element: '.purpose', text: true },
+        { element: '[class*="purpose"]', text: true },
+        { element: '[id*="purpose"]', text: true }
+      ],
       contacts: [
         { element: '.contact', text: true },
         { element: '.phone', text: true },
@@ -49,7 +66,6 @@ class CompanyScraper {
     try {
       await delay(Math.random() * 2000 + 1000);
       
-      const axios = require('axios');
       const response = await axios.get(url, {
         headers: {
           'User-Agent': getRandomUserAgent(),
@@ -90,7 +106,7 @@ class CompanyScraper {
         timeout: 30000 
       });
 
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       const html = await page.content();
       return this.extractCompanyInfo(html, url);
@@ -120,6 +136,8 @@ class CompanyScraper {
       yearFounded: null,
       companySize: null,
       headquarters: null,
+      missionStatement: null,
+      corporatePurpose: null,
       branchLocations: [],
       registrationNumbers: [],
       services: [],
@@ -156,20 +174,21 @@ class CompanyScraper {
     };
 
     companyInfo.name = this.extractField($, this.companySelectors.name);
-    companyInfo.description = this.extractField($, this.companySelectors.description);
+    companyInfo.description = this.extractField($, this.companySelectors.description) || $('meta[property="og:description"]').attr('content') || null;
     companyInfo.industry = this.extractField($, this.companySelectors.industry);
     companyInfo.pageTitle = this.cleanText($('title').first().text());
     companyInfo.metaDescription = $('meta[name="description"]').attr('content') || null;
     companyInfo.canonicalUrl = $('link[rel="canonical"]').attr('href') || null;
     companyInfo.tagline = this.extractTagline($, companyInfo.name);
-    companyInfo.about = this.extractAboutText($, companyInfo.description);
+    companyInfo.missionStatement = this.extractMissionStatement($, aboutText);
+    companyInfo.corporatePurpose = this.extractCorporatePurpose($, aboutText);
+    companyInfo.businessType = this.extractField($, this.companySelectors.businessType) || this.inferBusinessType(aboutText);
+    companyInfo.about = this.extractAboutText($, companyInfo.description || companyInfo.missionStatement || companyInfo.corporatePurpose);
 
     const yearMatch = aboutText.match(/(Founded|Established|Since)[^\d]*(\d{4})/i);
     if (yearMatch) companyInfo.yearFounded = yearMatch[2];
-    const sizeMatch = aboutText.match(/(\d{1,3}(?:,\d{3})*\+?|\d+\s*-\s*\d+)\s+(employees|team members|team|staff|people)/i);
-    if (sizeMatch) companyInfo.companySize = `${sizeMatch[1]} ${sizeMatch[2]}`;
-    const hqMatch = aboutText.match(/Headquarters?:?\s*([A-Za-z0-9\s,.-]{3,90})/i);
-    if (hqMatch) companyInfo.headquarters = this.cleanText(hqMatch[1]);
+    companyInfo.companySize = companyInfo.companySize || this.extractCompanySize(aboutText);
+    companyInfo.headquarters = companyInfo.headquarters || this.extractHeadquarters(aboutText);
 
     const regMatches = aboutText.match(/(Reg(istration)?( No\.?| Number)?[:\s]*[A-Z0-9\-]+)/gi);
     if (regMatches) companyInfo.registrationNumbers = regMatches.map(s => s.split(/[:\s]+/).pop());
@@ -255,11 +274,20 @@ class CompanyScraper {
           companyInfo.digitalPresence.hasStructuredData = true;
           if (entity.name && /Organization|LocalBusiness|Corporation|Company|ProfessionalService/i.test(type)) companyInfo.name = entity.name;
           if (entity.description) companyInfo.description = entity.description;
-          if (entity.address) companyInfo.contacts.addresses.push(this.formatSchemaAddress(entity.address));
+          if (entity.address) {
+            const schemaAddress = this.formatSchemaAddress(entity.address);
+            if (schemaAddress) {
+              companyInfo.contacts.addresses.push(schemaAddress);
+              if (!companyInfo.headquarters) companyInfo.headquarters = schemaAddress;
+            }
+          }
           if (entity.email) companyInfo.contacts.emails.push(entity.email);
           if (entity.telephone) companyInfo.contacts.phones.push(entity.telephone);
           if (entity.foundingDate && !companyInfo.yearFounded) companyInfo.yearFounded = String(entity.foundingDate).slice(0, 4);
-          if (entity.numberOfEmployees && !companyInfo.companySize) companyInfo.companySize = String(entity.numberOfEmployees);
+          if (entity.numberOfEmployees && !companyInfo.companySize) companyInfo.companySize = this.normalizeEmployeeCount(entity.numberOfEmployees);
+          if (entity.employee && !companyInfo.companySize) companyInfo.companySize = this.normalizeEmployeeCount(entity.employee);
+          if (entity.mission && !companyInfo.missionStatement) companyInfo.missionStatement = this.cleanText(entity.mission);
+          if (entity.description && !companyInfo.corporatePurpose) companyInfo.corporatePurpose = this.cleanText(entity.description);
           if (entity.sameAs && Array.isArray(entity.sameAs)) this.mergeSocialLinks(companyInfo.socialLinks, entity.sameAs);
           if (entity.founder) companyInfo.team.push(this.schemaName(entity.founder));
           if (entity.employee) companyInfo.team.push(this.schemaName(entity.employee));
@@ -376,6 +404,94 @@ class CompanyScraper {
     const about = $(aboutSelector).filter((i, el) => /about|who we are|our company|overview/i.test($(el).text())).first().text();
     const text = this.cleanText(about) || this.cleanText(fallback);
     return text && text.length > 700 ? `${text.slice(0, 697)}...` : text;
+  }
+
+  extractMissionStatement($, bodyText) {
+    const direct = this.extractField($, this.companySelectors.missionStatement) || this.extractSectionSnippet($, /mission|our mission|mission statement/i);
+    if (direct) return direct;
+    return this.extractSentence(bodyText, /(mission|purpose|vision)/i);
+  }
+
+  extractCorporatePurpose($, bodyText) {
+    const direct = this.extractField($, this.companySelectors.corporatePurpose) || this.extractSectionSnippet($, /purpose|corporate purpose|our purpose|vision|why we exist/i);
+    if (direct) return direct;
+    const sentence = this.extractSentence(bodyText, /(purpose|vision|why we exist|our why)/i);
+    return sentence ? sentence : null;
+  }
+
+  extractHeadquarters(text) {
+    const patterns = [
+      /Headquarters?:?\s*([^\.\n]{3,90})/i,
+      /Headquartered in\s*([^\.\n]{3,90})/i,
+      /Based in\s*([^\.\n]{3,90})/i,
+      /Located in\s*([^\.\n]{3,90})/i,
+      /HQ:?\s*([^\.\n]{3,90})/i,
+    ];
+    for (const pattern of patterns) {
+      const match = text.match(pattern);
+      if (match) return this.cleanText(match[1]);
+    }
+    return null;
+  }
+
+  extractCompanySize(text) {
+    const rangeMatch = text.match(/(\d{1,3}(?:,\d{3})?)(?:\s*-\s*(\d{1,3}(?:,\d{3})?))?\s+(employees|team members|staff|people|personnel|workers)/i);
+    if (rangeMatch) {
+      const start = rangeMatch[1].replace(/,/g, '');
+      const end = rangeMatch[2] ? rangeMatch[2].replace(/,/g, '') : null;
+      return end ? `${start}-${end} employees` : `${start} employees`;
+    }
+    const labelMatch = text.match(/\b(small|micro|medium|large|enterprise)\b\s+(business|company|team|organization)/i);
+    if (labelMatch) return `${labelMatch[1]} ${labelMatch[2]}`;
+    return null;
+  }
+
+  normalizeEmployeeCount(value) {
+    if (!value) return null;
+    if (typeof value === 'number') return this.employeeRangeFromNumber(value);
+    if (typeof value === 'string') {
+      const cleaned = value.replace(/,/g, '').trim();
+      const rangeMatch = cleaned.match(/(\d+)\s*-\s*(\d+)/);
+      if (rangeMatch) return `${rangeMatch[1]}-${rangeMatch[2]} employees`;
+      const singleMatch = cleaned.match(/\d+/);
+      if (singleMatch) return this.employeeRangeFromNumber(Number(singleMatch[0]));
+      return this.cleanText(value);
+    }
+    if (Array.isArray(value)) return this.normalizeEmployeeCount(value[0]);
+    if (typeof value === 'object') return this.normalizeEmployeeCount(value.name || value.value || value['@type']);
+    return null;
+  }
+
+  employeeRangeFromNumber(num) {
+    if (num <= 10) return `${num} employees`;
+    if (num <= 50) return '10-50 employees';
+    if (num <= 100) return '50-100 employees';
+    if (num <= 250) return '100-250 employees';
+    if (num <= 500) return '250-500 employees';
+    if (num <= 1000) return '500-1000 employees';
+    return '1000+ employees';
+  }
+
+  extractSectionSnippet($, regex) {
+    const candidates = [];
+    $('section, article, div, p, li').each((i, el) => {
+      const text = this.cleanText($(el).text());
+      if (text && regex.test(text) && text.length > 40 && text.length < 320) {
+        candidates.push(text);
+      }
+    });
+    return candidates.sort((a, b) => a.length - b.length)[0] || null;
+  }
+
+  extractSentence(text, regex) {
+    const matches = text.match(/[^.!?]*([.!?]|$)/g) || [];
+    for (const sentence of matches) {
+      if (regex.test(sentence)) {
+        const clean = this.cleanText(sentence);
+        if (clean && clean.length > 30) return clean;
+      }
+    }
+    return null;
   }
 
   extractOfferings($, bodyText, type) {

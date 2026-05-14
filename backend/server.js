@@ -1,9 +1,17 @@
-import dotenv from "dotenv"
-dotenv.config()
-
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import helmet from 'helmet'
+
+// Route imports
+import authRoutes from './routes/auth.js'
+import tendersRoutes from './routes/tenders.js'
+import applicationsRoutes from './routes/applications.js'
+import tenderSourcesRoutes from './routes/tender-sources.js'
+import aiRoutes from './routes/ai.js'
+import emailRoutes from './routes/email.js'
+import scrapeTenders from './routes/scrape-tenders.js'
+import companyRoutes from './routes/company.js'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -57,46 +65,17 @@ app.use('/api', async (req, res, next) => {
   }
 })
 
-// Lazy load routes
-app.use('/api/auth', async (req, res, next) => {
-  const authRoutes = await import('./routes/auth.js')
-  authRoutes.default(req, res, next)
-})
+// Routes
+app.use('/api/auth', authRoutes)
+app.use('/api/tenders', tendersRoutes)
+app.use('/api/applications', applicationsRoutes)
+app.use('/api/tender-sources', tenderSourcesRoutes)
+app.use('/api/ai', aiRoutes)
+app.use('/api/email', emailRoutes)
+app.use('/api/scrape-tenders', scrapeTenders)
+app.use('/api/companies', companyRoutes)
 
-app.use('/api/tenders', async (req, res, next) => {
-  const tendersRoutes = await import('./routes/tenders.js')
-  tendersRoutes.default(req, res, next)
-})
-
-app.use('/api/applications', async (req, res, next) => {
-  const applicationsRoutes = await import('./routes/applications.js')
-  applicationsRoutes.default(req, res, next)
-})
-
-app.use('/api/tender-sources', async (req, res, next) => {
-  const tenderSourcesRoutes = await import('./routes/tender-sources.js')
-  tenderSourcesRoutes.default(req, res, next)
-})
-
-app.use('/api/ai', async (req, res, next) => {
-  const aiRoutes = await import('./routes/ai.js')
-  aiRoutes.default(req, res, next)
-})
-
-app.use('/api/email', async (req, res, next) => {
-  const emailRoutes = await import('./routes/email.js')
-  emailRoutes.default(req, res, next)
-})
-
-app.use('/api/scrape-tenders', async (req, res, next) => {
-  const scrapeTenders = await import('./routes/scrape-tenders.js')
-  scrapeTenders.default(req, res, next)
-})
-
-app.use('/scrape', async (req, res, next) => {
-  const scrapeTenders = await import('./routes/scrape-tenders.js')
-  scrapeTenders.default(req, res, next)
-})
+app.use('/scrape', scrapeTenders)
 
 // Error handler
 app.use((err, req, res, next) => {
@@ -125,6 +104,7 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log('  POST /scrape - Scrape one or more tender sources')
   console.log('  GET /api/scrape-tenders/status/:jobId - Get job status')
   console.log('  GET /health - Health check')
+  console.log('  GET /api/companies - List company profiles')
 })
 
 export default app

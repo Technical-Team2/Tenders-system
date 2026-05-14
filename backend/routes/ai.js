@@ -52,7 +52,54 @@ router.post('/extract-company', async (req, res) => {
     const scraper = new CompanyScraper();
     const companyInfo = await scraper.scrapeCompany(normalizedUrl);
 
-    // Persist in memory for modal persistence
+    // Persist in DB for permanent storage
+    try {
+      const dbData = {
+        name: companyInfo.name,
+        website: normalizedUrl,
+        tagline: companyInfo.tagline,
+        description: companyInfo.description,
+        about: companyInfo.about,
+        industry: companyInfo.industry,
+        intelligence_summary: companyInfo.intelligenceSummary,
+        contacts: companyInfo.contacts,
+        social_links: companyInfo.socialLinks,
+        services: companyInfo.services,
+        products: companyInfo.products,
+        technologies: companyInfo.technologies,
+        branch_locations: companyInfo.branchLocations,
+        registration_numbers: companyInfo.registrationNumbers,
+        value_propositions: companyInfo.valuePropositions,
+        target_customers: companyInfo.targetCustomers,
+        company_positioning: companyInfo.companyPositioning,
+        operational_capabilities: companyInfo.operationalCapabilities,
+        automation_capabilities: companyInfo.automationCapabilities,
+        integrations: companyInfo.integrations,
+        keywords: companyInfo.keywords,
+        team: companyInfo.team,
+        digital_presence: companyInfo.digitalPresence,
+        og_data: companyInfo.ogData,
+        schema_org: companyInfo.schemaOrg,
+        business_category: companyInfo.businessCategory,
+        business_type: companyInfo.businessType,
+        year_founded: companyInfo.yearFounded,
+        company_size: companyInfo.companySize,
+        headquarters: companyInfo.headquarters,
+        raw_data: companyInfo,
+        updated_at: new Date().toISOString()
+      };
+
+      await supabase
+        .from('company_info')
+        .upsert(dbData, { onConflict: 'website' });
+        
+      console.log(`✅ Persisted company info for ${normalizedUrl}`);
+    } catch (dbError) {
+      console.error('Failed to persist company info in DB:', dbError.message);
+      // Don't fail the request if DB save fails
+    }
+
+    // Persist in memory for modal persistence (legacy support)
     lastExtractedCompany = companyInfo;
 
     res.json(companyInfo);

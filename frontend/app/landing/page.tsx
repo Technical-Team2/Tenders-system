@@ -4,35 +4,6 @@ import { Building, Search, Calendar, TrendingUp, Users, ArrowRight } from 'lucid
 export default function LandingPage() {
   // Static landing page - no authentication check
   // Sample tenders data for display
-  const sampleTenders = [
-    {
-      id: '1',
-      title: 'ICT Infrastructure Development',
-      organization: 'Ministry of ICT',
-      budget: 5000000,
-      currency: 'KES',
-      deadline: '2024-06-15',
-      description: 'Development of comprehensive ICT infrastructure including networking, servers, and software solutions.'
-    },
-    {
-      id: '2', 
-      title: 'Healthcare Equipment Supply',
-      organization: 'County Hospital',
-      budget: 2500000,
-      currency: 'KES',
-      deadline: '2024-06-20',
-      description: 'Supply of medical equipment and consumables for hospital expansion.'
-    },
-    {
-      id: '3',
-      title: 'School Construction Project',
-      organization: 'Education Ministry',
-      budget: 8000000,
-      currency: 'KES',
-      deadline: '2024-07-10',
-      description: 'Construction of new secondary school facilities including classrooms and laboratories.'
-    }
-  ]
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100">
@@ -111,82 +82,7 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Active Tenders Preview */}
-      {sampleTenders && sampleTenders.length > 0 && (
-        <section className="py-16 bg-gray-50">
-          <div className="container mx-auto px-4">
-            <div className="text-center mb-12">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
-                Latest Tender Opportunities
-              </h2>
-              <p className="text-gray-600 text-lg">
-                Discover active tenders currently available in system
-              </p>
-            </div>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {sampleTenders.map((tender) => (
-                <div key={tender.id} className="bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow p-6">
-                  <div className="flex items-start justify-between mb-4">
-                    <h3 className="text-lg font-semibold text-gray-900 flex-1">
-                      {tender.title}
-                    </h3>
-                    {tender.budget && (
-                      <span className="bg-green-100 text-green-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {tender.currency || 'KES'} {tender.budget.toLocaleString()}
-                      </span>
-                    )}
-                  </div>
-                  <p className="text-gray-600 mb-4 line-clamp-3">
-                    {tender.description}
-                  </p>
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <span>{tender.organization}</span>
-                    {tender.deadline && (
-                      <span>Deadline: {new Date(tender.deadline).toLocaleDateString()}</span>
-                    )}
-                  </div>
-                  <div className="mt-4 pt-4 border-t">
-                    <Link 
-                      href="/signup" 
-                      className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg font-medium transition-colors text-center block"
-                    >
-                      Sign Up to View Details
-                    </Link>
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="text-center mt-12">
-              <Link 
-                href="/signup" 
-                className="inline-flex items-center bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-lg font-medium transition-colors text-lg"
-              >
-                View All Tenders
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </Link>
-            </div>
-          </div>
-        </section>
-      )}
-
-      {/* CTA Section */}
-      <section className="py-20 bg-blue-600">
-        <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold text-white mb-6">
-            Ready to Transform Your Tender Management?
-          </h2>
-          <p className="text-xl text-blue-100 mb-8 max-w-2xl mx-auto">
-            Join thousands of professionals who are already winning more contracts with our intelligent platform.
-          </p>
-          <Link 
-            href="/signup" 
-            className="inline-flex items-center bg-white text-blue-600 hover:bg-gray-100 px-8 py-4 rounded-lg font-medium transition-colors text-lg"
-          >
-            Start Your Free Trial
-            <ArrowRight className="ml-2 h-5 w-5" />
-          </Link>
-        </div>
-      </section>
+    
 
       {/* Footer */}
       <footer className="bg-gray-900 text-white py-12">

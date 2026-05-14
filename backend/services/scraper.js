@@ -103,7 +103,7 @@ class MultiLayerScraper {
       });
 
       // Wait for content to load
-      await page.waitForTimeout(2000);
+      await new Promise(resolve => setTimeout(resolve, 2000));
 
       const html = await page.content();
       return html;
@@ -180,7 +180,7 @@ class MultiLayerScraper {
       });
 
       // Wait for content to load
-      await page.waitForTimeout(3000);
+      await new Promise(resolve => setTimeout(resolve, 3000));
 
       const html = await page.content();
       return html;

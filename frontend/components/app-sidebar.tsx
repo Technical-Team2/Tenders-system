@@ -14,6 +14,7 @@ import {
   LogOut,
   Menu,
   X,
+  Building2,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Spinner } from '@/components/ui/spinner'
@@ -26,6 +27,7 @@ const navigation = [
   { name: "Applications", href: "/dashboard/applications", icon: Send },
   { name: "AI Assistant", href: "/dashboard/assistant", icon: Sparkles },
   { name: "Sources", href: "/dashboard/sources", icon: Database },
+  { name: "Company Info", href: "/dashboard/company", icon: Building2 },
   { name: "Settings", href: "/dashboard/settings", icon: Settings },
 ]
 
