@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { AssistantContent } from './assistant-content'
+import { Loader } from '@/components/ui/loader'
 import type { Tender } from '@/lib/types'
 
 export function AssistantPageClient() {
@@ -36,11 +37,7 @@ export function AssistantPageClient() {
   }, [])
 
   if (isLoading) {
-    return (
-      <div className="p-8 text-sm text-muted-foreground">
-        Loading assistant data...
-      </div>
-    )
+    return <Loader label="Loading assistant data..." className="p-0" />
   }
 
   return <AssistantContent recentTenders={recentTenders} />

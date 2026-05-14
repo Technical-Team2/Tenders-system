@@ -159,7 +159,7 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-foreground flex items-center gap-2">
-            <Database className="h-6 w-6 text-accent" />
+            <Database className="h-6 w-6 text-blue-600" />
             Tender Sources
           </h1>
           <p className="text-muted-foreground">
@@ -306,8 +306,8 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
                   <CardContent className="p-6">
                     <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
                       <div className="flex items-start gap-4 min-w-0 flex-1">
-                        <div className={`rounded-lg p-2.5 ${source.is_active ? "bg-accent/10" : "bg-secondary"} flex-shrink-0`}>
-                          <TypeIcon className={`h-5 w-5 ${source.is_active ? "text-accent" : "text-muted-foreground"}`} />
+                        <div className={`rounded-lg p-2.5 ${source.is_active ? "bg-blue-50" : "bg-secondary"} flex-shrink-0`}>
+                          <TypeIcon className={`h-5 w-5 ${source.is_active ? "text-blue-600" : "text-muted-foreground"}`} />
                         </div>
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2 flex-wrap">
@@ -320,7 +320,7 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
                             href={source.base_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="text-sm text-muted-foreground hover:text-accent flex items-center gap-1 mt-1 truncate"
+                            className="text-sm text-muted-foreground hover:text-blue-600 flex items-center gap-1 mt-1 truncate"
                           >
                             <span className="truncate">{source.base_url}</span>
                             <ExternalLink className="h-3 w-3 flex-shrink-0" />
@@ -341,7 +341,7 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
                           size="sm"
                           onClick={() => handleScrapeSource(source)}
                           disabled={isCurrentlyScraping || !source.is_active}
-                          className="border-accent text-accent hover:bg-accent hover:text-accent-foreground whitespace-nowrap"
+                          className="border-blue-200 text-blue-600 hover:bg-blue-50 whitespace-nowrap transition-colors"
                         >
                           {isCurrentlyScraping ? (
                             <>

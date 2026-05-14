@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api/client'
+import { Loader } from '@/components/ui/loader'
 import type { Tender } from '@/lib/types'
 import { TenderDetailContent } from './tender-detail-content'
 
@@ -42,7 +43,7 @@ export function TenderDetailPageClient({ id }: { id: string }) {
   }
 
   if (isLoading || !tender) {
-    return <div className="p-8 text-sm text-muted-foreground">Loading tender...</div>
+    return <Loader label="Loading tender..." className="p-0" />
   }
 
   return <TenderDetailContent tender={tender} extractedDetails={null} application={null} />

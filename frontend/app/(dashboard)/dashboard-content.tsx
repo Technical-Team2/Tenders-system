@@ -20,7 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { useAuth } from '@/lib/auth/context'
 import { ScoreBadge } from '@/components/score-badge'
-import { StatusBadge } from '@/components/status-badge'
+import { cn } from '@/lib/utils'
 import type { Application, DashboardStats, ScrapeLog, Tender } from '@/lib/types'
 
 interface Activity {
@@ -231,69 +231,91 @@ export function DashboardContent({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Recent Tenders (Last 10)</CardTitle>
+      <Card className="border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)]">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
+          <CardTitle className="text-xl font-bold">Recent Tenders (Last 10)</CardTitle>
+          <Button variant="ghost" size="sm" className="text-blue-600 font-semibold" asChild>
+            <Link href="/dashboard/tenders">
+              View All
+            </Link>
+          </Button>
         </CardHeader>
         <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Org</TableHead>
-                <TableHead>Deadline</TableHead>
-                <TableHead>Score</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Action</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {recentTenders.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={6} className="text-center text-muted-foreground">
-                    No tenders found in the database yet.
-                  </TableCell>
+          <div className="rounded-xl border border-slate-100 overflow-hidden">
+            <Table>
+              <TableHeader className="bg-slate-50/50">
+                <TableRow className="hover:bg-transparent border-slate-100">
+                  <TableHead className="font-bold text-slate-700 py-4">Tender Title</TableHead>
+                  <TableHead className="font-bold text-slate-700">Organization</TableHead>
+                  <TableHead className="font-bold text-slate-700">Category</TableHead>
+                  <TableHead className="font-bold text-slate-700">Deadline</TableHead>
+                  <TableHead className="font-bold text-slate-700">Priority</TableHead>
+                  <TableHead className="font-bold text-slate-700">Score</TableHead>
+                  <TableHead className="font-bold text-slate-700 text-right">Actions</TableHead>
                 </TableRow>
-              ) : recentTenders.map((tender) => (
-                <TableRow key={tender.id}>
-                  <TableCell className="font-medium">{tender.title}</TableCell>
-                  <TableCell>{tender.organization || 'Unknown'}</TableCell>
-                  <TableCell>
-                    <div className="flex items-center space-x-2">
-                      <span>{formatDeadline(tender.deadline)}</span>
-                      <Clock className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    {tender.tender_scores?.[0] ? (
-                      <ScoreBadge score={tender.tender_scores[0].score} size="sm" />
-                    ) : (
-                      <span className="text-sm text-muted-foreground">N/A</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <StatusBadge status={tender.status} />
-                  </TableCell>
-                  <TableCell>
-                    <Button variant="ghost" size="sm" asChild>
-                      <Link href={`/dashboard/tenders/${tender.id}`}>
-                        <Eye className="h-4 w-4" />
-                      </Link>
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <div className="mt-4">
-            <Button variant="outline" asChild>
-              <Link href="/dashboard/tenders">
-                View All Tenders
-              </Link>
-            </Button>
+              </TableHeader>
+              <TableBody>
+                {recentTenders.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={7} className="h-32 text-center text-muted-foreground">
+                      No tenders found in the database yet.
+                    </TableCell>
+                  </TableRow>
+                ) : recentTenders.map((tender) => (
+                  <TableRow key={tender.id} className="border-slate-100 hover:bg-slate-50/50 transition-colors">
+                    <TableCell className="font-semibold text-slate-900 py-4">
+                      <div className="max-w-[300px] truncate" title={tender.title}>
+                        {tender.title}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-slate-600">
+                      <div className="max-w-[200px] truncate" title={tender.organization || 'N/A'}>
+                        {tender.organization || 'N/A'}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className="inline-flex items-center rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                        {tender.categories?.[0] || tender.sector || 'General'}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2 text-slate-600">
+                        <Clock className="h-3.5 w-3.5 text-slate-400" />
+                        <span className="text-sm whitespace-nowrap">{formatDeadline(tender.deadline)}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <span className={cn(
+                        "inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold",
+                        tender.priority === 'high' ? "bg-red-50 text-red-600" :
+                        tender.priority === 'medium' ? "bg-amber-50 text-amber-600" :
+                        "bg-blue-50 text-blue-600"
+                      )}>
+                        {(tender.priority || 'Medium').toUpperCase()}
+                      </span>
+                    </TableCell>
+                    <TableCell>
+                      {tender.tender_scores?.[0] ? (
+                        <ScoreBadge score={tender.tender_scores[0].score} size="sm" />
+                      ) : (
+                        <span className="text-xs font-medium text-slate-400">N/A</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg" asChild>
+                        <Link href={`/dashboard/tenders/${tender.id}`}>
+                          <Eye className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
           </div>
         </CardContent>
       </Card>
+
 
       {/* High Score Tenders */}
       <Card>

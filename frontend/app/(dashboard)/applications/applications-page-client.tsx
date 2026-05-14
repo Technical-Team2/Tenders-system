@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api/client'
+import { Loader } from '@/components/ui/loader'
 import type { Application } from '@/lib/types'
 import { ApplicationsContent } from './applications-content'
 
@@ -35,7 +36,7 @@ export function ApplicationsPageClient() {
   }, [])
 
   if (isLoading) {
-    return <div className="p-8 text-sm text-muted-foreground">Loading applications...</div>
+    return <Loader label="Loading applications..." className="p-0" />
   }
 
   return <ApplicationsContent applications={applications} />

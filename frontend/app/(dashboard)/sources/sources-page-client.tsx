@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api/client'
+import { Loader } from '@/components/ui/loader'
 import type { ScrapeLog, Tender, TenderSource } from '@/lib/types'
 import { SourcesContent } from './sources-content'
 
@@ -48,7 +49,7 @@ export function SourcesPageClient() {
   }, [])
 
   if (isLoading) {
-    return <div className="p-8 text-sm text-muted-foreground">Loading sources...</div>
+    return <Loader label="Loading sources..." className="p-0" />
   }
 
   return <SourcesContent sources={sources} scrapeLogs={[] as ScrapeLog[]} tenderCounts={tenderCounts} />

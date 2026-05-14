@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { DashboardContent } from './dashboard-content'
 import { apiClient } from '@/lib/api/client'
+import { Loader } from '@/components/ui/loader'
 import type { Application, DashboardStats, Tender, TenderSource } from '@/lib/types'
 
 const emptyStats: DashboardStats = {
@@ -74,11 +75,7 @@ export function DashboardPageClient() {
   }, [])
 
   if (isLoading) {
-    return (
-      <div className="p-8 text-sm text-muted-foreground">
-        Loading dashboard data...
-      </div>
-    )
+    return <Loader label="Loading dashboard data..." className="p-0" />
   }
 
   return (

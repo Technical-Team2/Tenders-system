@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { apiClient } from '@/lib/api/client'
 import { TendersListContent } from './tenders-list-content'
+import { Loader } from '@/components/ui/loader'
 import type { Tender, TenderSource } from '@/lib/types'
 
 export function TendersPageClient() {
@@ -41,11 +42,7 @@ export function TendersPageClient() {
   }, [])
 
   if (isLoading) {
-    return (
-      <div className="p-8 text-sm text-muted-foreground">
-        Loading tenders...
-      </div>
-    )
+    return <Loader label="Loading tenders..." className="p-0" />
   }
 
   const sectors = [...new Set(tenders.map((tender) => tender.sector).filter(Boolean))] as string[]
