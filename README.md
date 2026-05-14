@@ -365,39 +365,49 @@ cd frontend && pnpm install
 cd ../backend && pnpm install
 ```
 
+
 ### 2. Configure Environment Variables
 
 #### Frontend (`frontend/.env.local`)
 
+Create a `.env.local` file in the `frontend/` directory with the following variables:
+
 ```env
-NEXT_PUBLIC_SUPABASE_URL=...
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...
-SUPABASE_SERVICE_ROLE_KEY=...
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 NEXT_PUBLIC_API_URL=http://localhost:3001
 ```
 
 Notes:
-
 - `SUPABASE_SERVICE_ROLE_KEY` is currently required by `frontend/app/api/scrape/route.ts`
-- restart the frontend dev server after updating `.env.local`
+- Restart the frontend dev server after updating `.env.local`
 
 #### Backend (`backend/.env`)
 
-Typical local values:
+Copy the provided `.env.example` in the `backend/` directory to `.env` and fill in your actual values:
+
+```bash
+cp backend/.env.example backend/.env
+```
+
+Edit `backend/.env` and provide the required values. Example variables:
 
 ```env
 PORT=3001
 NODE_ENV=development
-NEXT_PUBLIC_SUPABASE_URL=...
-SUPABASE_SERVICE_ROLE_KEY=...
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key_here
 FRONTEND_URL=http://localhost:3000
 REDIS_URL=redis://localhost:6379
-OPENAI_API_KEY=...
-EMAIL_HOST=...
+OPENAI_API_KEY=your_openai_api_key_here
+EMAIL_HOST=your_email_host
 EMAIL_PORT=587
-EMAIL_USER=...
-EMAIL_PASS=...
+EMAIL_USER=your_email_user
+EMAIL_PASS=your_email_password
 ```
+
+> **Note:** Never commit `.env` files with real secrets to version control. Only share `.env.example` for reference.
 
 ### 3. Set Up The Database
 
