@@ -266,57 +266,109 @@ class AIProcessor {
     }
   }
 
-  async summarizeTender(tender) {
+  async analyzeTenderCompatibility(tender, companyProfile) {
     // Return early if AI is disabled
     if (!this.enabled) {
       return {
-        summary: tender.description || 'No description available',
-        keyHighlights: [],
-        actionItems: [],
-        timeToDeadline: 'Unknown',
-        suitabilityScore: 0.5
+        qualification_assessment: { is_recommended: false, qualification_level: "Unknown", confidence_level: "Low" },
+        scores: { final_match_score: 0 },
+        strategic_analysis: { why_it_matches: "AI Processor Disabled" }
       };
     }
 
     try {
       const prompt = `
-        Create a concise summary of this tender for quick review.
+        You are an expert procurement intelligence and tender qualification AI system.
+        Analyze the following tender against the provided company profile.
 
-        Tender data:
-        Title: ${tender.title}
-        Description: ${tender.description}
-        Organization: ${tender.organization}
-        Deadline: ${tender.deadline}
-        Budget: ${tender.budget}
-        Requirements: ${tender.requirements?.join(', ')}
+        ==================================================
+        COMPANY PROFILE:
+        ${JSON.stringify(companyProfile, null, 2)}
 
-        Return a JSON object with:
+        TENDER DATA:
+        ${JSON.stringify(tender, null, 2)}
+        ==================================================
+
+        Analyze the tender against the company profile using the following dimensions:
+        1. INDUSTRY ALIGNMENT
+        2. SERVICE/SCOPE MATCH
+        3. FINANCIAL CAPACITY
+        4. EXPERIENCE MATCH
+        5. CERTIFICATION & COMPLIANCE MATCH
+        6. GEOGRAPHIC FEASIBILITY
+        7. TIMELINE & EXECUTION FEASIBILITY
+        8. COMPETITION/COMPLEXITY RISK
+        9. TENDER READINESS
+        10. OVERALL STRATEGIC FIT
+
+        SCORING INSTRUCTIONS:
+        Generate weighted scores from 0–100 for each dimension.
+        Compute a final_match_score.
+        
+        RISK DETECTION:
+        Detect missing certifications, insufficient experience, budget overreach, staffing limitations, etc.
+
+        Return STRICT JSON ONLY in the following format:
         {
-          "summary": "2-3 sentence summary",
-          "keyHighlights": ["highlight1", "highlight2", ...],
-          "actionItems": ["action1", "action2", ...],
-          "timeToDeadline": "X days/weeks",
-          "suitabilityScore": 0.0-1.0
+          "tender_summary": {
+            "title": "",
+            "organization": "",
+            "sector": "",
+            "location": "",
+            "scope_summary": "",
+            "estimated_complexity": "",
+            "estimated_competition_level": ""
+          },
+          "qualification_assessment": {
+            "is_recommended": true/false,
+            "qualification_level": "Excellent|Strong|Moderate|Weak|Not Recommended",
+            "confidence_level": "High|Medium|Low"
+          },
+          "scores": {
+            "industry_alignment": 0,
+            "service_match": 0,
+            "financial_capacity": 0,
+            "experience_match": 0,
+            "certification_match": 0,
+            "geographic_match": 0,
+            "execution_feasibility": 0,
+            "strategic_fit": 0,
+            "final_match_score": 0
+          },
+          "strengths": [],
+          "weaknesses": [],
+          "risks": [],
+          "missing_requirements": [],
+          "strategic_analysis": {
+            "why_it_matches": "",
+            "why_it_may_fail": "",
+            "recommended_action": "",
+            "partnership_needed": false,
+            "bid_readiness": ""
+          },
+          "feasibility_analysis": {
+            "operational_feasibility": "",
+            "financial_feasibility": "",
+            "technical_feasibility": "",
+            "overall_feasibility": ""
+          }
         }
       `;
 
       const response = await this.openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [{ role: "user", content: prompt }],
-        temperature: 0.3,
-        max_tokens: 600
+        model: "gpt-4o", // Using 4o for deeper analysis as requested
+        messages: [{ role: "system", content: "You are a professional bid evaluation expert." }, { role: "user", content: prompt }],
+        temperature: 0.2,
+        response_format: { type: "json_object" }
       });
 
       const content = response.choices[0].message.content;
       return JSON.parse(content);
     } catch (error) {
-      console.error('Error summarizing tender:', error.message);
+      console.error('Error in Procurement Intelligence Analysis:', error.message);
       return {
-        summary: tender.description || 'No description available',
-        keyHighlights: [],
-        actionItems: [],
-        timeToDeadline: 'Unknown',
-        suitabilityScore: 0.5
+        error: error.message,
+        qualification_assessment: { is_recommended: false, qualification_level: "Error", confidence_level: "None" }
       };
     }
   }

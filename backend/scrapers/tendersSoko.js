@@ -5,8 +5,14 @@ const scraper = new MultiLayerScraper();
 export async function scrape(url) {
   try {
     const result = await scraper.scrape(url);
-    const items = scraper.detectStructuredItems(result.html, url);
     
+    // If unified scraper already found tenders, return them
+    if (result.tenders && result.tenders.length > 0) {
+      return result.tenders;
+    }
+
+    // Fallback/Override logic if unified fails but we have HTML
+    const items = scraper.detectStructuredItems(result.html, url);
     if (items && items.length > 0) {
       return items.map((item, index) => {
         const fields = scraper.extractFieldsFromItem(item, index, url);
@@ -14,12 +20,7 @@ export async function scrape(url) {
       }).filter(item => scraper.validateRecord(item, []));
     }
     
-    return [scraper.enrichOutput({
-      title: scraper.extractTitle(result.html),
-      description: scraper.extractDescription(result.html),
-      ...scraper.extractStructuredData(result.html),
-      source_url: url
-    })];
+    return [];
   } catch (error) {
     console.error(`TendersSoko scrape failed:`, error.message);
     throw error;

@@ -1020,6 +1020,37 @@ class MultiLayerScraper {
     };
   }
 
+  // Unified Entry Point for all scrapers
+  async scrape(url, options = {}) {
+    console.log(`\n🌐 [Unified Scraper] Starting high-level scrape for: ${url}`);
+    
+    // 1. Fetch HTML using the best available strategy
+    const scrapeResult = await this.scrapeWebsite({
+      url,
+      strategy: options.strategy || 'axios',
+      selectors: options.selectors || {},
+      retryCount: options.retryCount || 2
+    });
+
+    if (!scrapeResult || !scrapeResult.html) {
+      throw new Error(`Failed to retrieve HTML content from ${url}`);
+    }
+
+    // 2. Perform deep structured extraction
+    const tenders = await this.extractStructuredData(scrapeResult.html, url);
+
+    // 3. Return a consistent result object
+    return {
+      success: true,
+      url,
+      html: scrapeResult.html,
+      tenders,
+      count: tenders.length,
+      strategy: scrapeResult.strategy,
+      timestamp: scrapeResult.timestamp
+    };
+  }
+
   async fetchWith(strategy, url) {
     switch (strategy) {
       case 'axios':

@@ -95,6 +95,7 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
   const [scrapeMessage, setScrapeMessage] = useState<{ type: "success" | "error"; text: string } | null>(null)
   const [newSource, setNewSource] = useState({ name: "", base_url: "", type: "html" })
   const [isDeleting, setIsDeleting] = useState(false)
+  const [isAdding, setIsAdding] = useState(false)
 
   const handleToggleSource = async (sourceId: string, isActive: boolean) => {
     await toggleSource(sourceId, isActive)
@@ -103,10 +104,17 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
 
   const handleAddSource = async () => {
     if (newSource.name && newSource.base_url) {
-      await addSource(newSource)
-      setNewSource({ name: "", base_url: "", type: "html" })
-      setIsAddDialogOpen(false)
-      router.refresh()
+      setIsAdding(true)
+      try {
+        await addSource(newSource)
+        setNewSource({ name: "", base_url: "", type: "html" })
+        setIsAddDialogOpen(false)
+        router.refresh()
+      } catch (error) {
+        console.error("Failed to add source:", error)
+      } finally {
+        setIsAdding(false)
+      }
     }
   }
 
@@ -222,11 +230,22 @@ export function SourcesContent({ sources, scrapeLogs, tenderCounts }: SourcesCon
               </div>
             </div>
             <DialogFooter>
-              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)}>
+              <Button variant="outline" onClick={() => setIsAddDialogOpen(false)} disabled={isAdding}>
                 Cancel
               </Button>
-              <Button onClick={handleAddSource} className="bg-primary hover:bg-primary/90">
-                Add Source
+              <Button 
+                onClick={handleAddSource} 
+                className="bg-primary hover:bg-primary/90"
+                disabled={isAdding}
+              >
+                {isAdding ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Adding...
+                  </>
+                ) : (
+                  "Add Source"
+                )}
               </Button>
             </DialogFooter>
           </DialogContent>

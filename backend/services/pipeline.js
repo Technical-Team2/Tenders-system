@@ -227,6 +227,14 @@ class ScrapingPipeline {
       console.log(`Starting pipeline for source: ${name} (${normalizedUrl})`);
       const scrapeResult = await scrapeTenders(normalizedUrl);
 
+      // Fetch company profile for intelligence matching
+      const { data: companyProfile } = await this.supabase
+        .from('company_info')
+        .select('*')
+        .order('updated_at', { ascending: false })
+        .limit(1)
+        .single();
+
       if (!scrapeResult.success) {
         return {
           success: false,
@@ -268,7 +276,7 @@ class ScrapingPipeline {
           documents: [],
           categories: extractedData.category ? [extractedData.category] : [],
           scraped_at: new Date().toISOString(),
-          sector: 'other',
+          sector: extractedData.sector || 'other',
           priority: 'medium',
           score: 0.5,
           location: extractedData.location,
@@ -284,9 +292,34 @@ class ScrapingPipeline {
 
         try {
           const storedTender = await this.storeTenderWithDeduplication(validatedTender);
+          
+          // Perform Intelligence Analysis if AI is enabled and we have a company profile
+          if (this.aiProcessor.isEnabled() && companyProfile) {
+            console.log(`🤖 Analyzing compatibility for: ${storedTender.title}`);
+            const analysis = await this.aiProcessor.analyzeTenderCompatibility(storedTender, companyProfile);
+            
+            if (analysis && analysis.scores) {
+              await this.supabase
+                .from('tender_scores')
+                .upsert({
+                  tender_id: storedTender.id,
+                  score: analysis.scores.final_match_score,
+                  breakdown: analysis
+                });
+              
+              // Update tender status if it's highly recommended
+              if (analysis.scores.final_match_score >= 80) {
+                await this.supabase
+                  .from('tenders')
+                  .update({ status: 'recommended' })
+                  .eq('id', storedTender.id);
+              }
+            }
+          }
+
           insertedTenders.push(storedTender);
         } catch (error) {
-          console.error(`Failed to store tender from ${normalizedUrl}: ${error.message}`);
+          console.error(`Failed to process tender from ${normalizedUrl}: ${error.message}`);
           insertErrors.push(error.message);
         }
       }
@@ -296,8 +329,8 @@ class ScrapingPipeline {
           success: false,
           source: scrapeResult.source,
           error: insertErrors[0] || 'No tenders were stored',
-          reason: 'Database insert failed',
-          message: `Extracted ${extractedRecords.length} tender(s), but none could be stored in the database.`,
+          reason: 'Database processing failed',
+          message: `Extracted ${extractedRecords.length} tender(s), but none could be processed.`,
           extractedCount: extractedRecords.length,
           insertErrors
         };
@@ -310,7 +343,7 @@ class ScrapingPipeline {
         count: insertedTenders.length,
         tenders: insertedTenders,
         insertErrors,
-        message: `Successfully extracted and stored ${insertedTenders.length} tender(s)`
+        message: `Successfully processed ${insertedTenders.length} tender(s) with intelligence matching`
       };
     } catch (error) {
       console.error(`Pipeline failed for ${name}:`, error.message);

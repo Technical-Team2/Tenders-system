@@ -10,18 +10,61 @@ const supabase = createClient(
 // Score tender
 router.post('/score-tender', async (req, res) => {
   try {
-    const { tender_id, criteria } = req.body
+    const { tender_id } = req.body
 
-    // Simple scoring logic - in production, integrate with OpenAI
-    const score = Math.floor(Math.random() * 40) + 60 // Random score between 60-100
+    // Fetch tender data
+    const { data: tender, error: tenderError } = await supabase
+      .from('tenders')
+      .select('*')
+      .eq('id', tender_id)
+      .single()
+
+    if (tenderError || !tender) {
+      return res.status(404).json({ error: 'Tender not found' })
+    }
+
+    // Fetch company profile
+    const { data: companyProfile, error: profileError } = await supabase
+      .from('company_info')
+      .select('*')
+      .order('updated_at', { ascending: false })
+      .limit(1)
+      .single()
+
+    if (profileError || !companyProfile) {
+      return res.status(404).json({ error: 'Company profile not found. Please extract company info first.' })
+    }
+
+    // Dynamically import AIProcessor
+    const AIProcessor = (await import('../services/aiProcessor.js')).default
+    const aiProcessor = new AIProcessor()
+
+    if (!aiProcessor.isEnabled()) {
+      return res.status(503).json({ error: 'AI Processor is not configured (missing API key)' })
+    }
+
+    console.log(`🤖 Manually analyzing compatibility for: ${tender.title}`)
+    const analysis = await aiProcessor.analyzeTenderCompatibility(tender, companyProfile)
 
     const { data, error } = await supabase
       .from('tender_scores')
-      .insert([{ tender_id, score, criteria }])
+      .upsert({ 
+        tender_id, 
+        score: analysis.scores?.final_match_score || 0, 
+        breakdown: analysis 
+      }, { onConflict: 'tender_id' })
       .select()
 
     if (error) {
       return res.status(500).json({ error: error.message })
+    }
+
+    // Update tender status if it's highly recommended
+    if (analysis.scores?.final_match_score >= 80) {
+      await supabase
+        .from('tenders')
+        .update({ status: 'recommended' })
+        .eq('id', tender_id)
     }
 
     res.json(data[0])
