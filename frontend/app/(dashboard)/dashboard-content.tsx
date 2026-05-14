@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useEffect, useState } from 'react'
+import { CompanyScraperCard } from '@/components/company-scraper-card'
 import Link from "next/link"
 import { 
   FileSearch, 
@@ -200,6 +201,8 @@ export function DashboardContent({
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-4">
+            <CompanyScraperCard />
+
             <Button asChild>
               <Link href="/dashboard/tenders">
                 <FileSearch className="mr-2 h-4 w-4" />

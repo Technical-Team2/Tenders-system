@@ -31,23 +31,35 @@ router.post('/score-tender', async (req, res) => {
 })
 
 // Extract company info
+// In-memory persistence for last extracted company (per process)
+let lastExtractedCompany = null;
+
+// Enhanced company extraction endpoint
 router.post('/extract-company', async (req, res) => {
   try {
-    const { text } = req.body
-
-    // Simple company extraction - in production, integrate with AI service
-    const companyInfo = {
-      name: 'Extracted Company Name',
-      registration_number: 'REG-' + Math.random().toString(36).substr(2, 9).toUpperCase(),
-      address: 'Extracted Address',
-      contact: 'Extracted Contact'
+    const { url } = req.body;
+    if (!url) return res.status(400).json({ error: 'Missing company website URL' });
+    let normalizedUrl = url.trim();
+    if (!/^https?:\/\//i.test(normalizedUrl)) normalizedUrl = `https://${normalizedUrl}`;
+    try {
+      new URL(normalizedUrl);
+    } catch {
+      return res.status(400).json({ error: 'Invalid company website URL' });
     }
 
-    res.json(companyInfo)
+    // Dynamically import scraper to avoid circular deps
+    const CompanyScraper = (await import('../services/companyScraper.js')).default;
+    const scraper = new CompanyScraper();
+    const companyInfo = await scraper.scrapeCompany(normalizedUrl);
+
+    // Persist in memory for modal persistence
+    lastExtractedCompany = companyInfo;
+
+    res.json(companyInfo);
   } catch (error) {
-    res.status(500).json({ error: error.message })
+    res.status(500).json({ error: error.message });
   }
-})
+});
 
 // Application assistance
 router.post('/application-assist', async (req, res) => {
